@@ -16,7 +16,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @ValidReviewDates
-@Schema(description = "Optional. Provide custom index type and dates of the review. Missing fields use the defaults.")
+@Schema(description = "Optional. Provide custom index type and dates of the review. If not set, falls back to defaults")
 public class ConfigRequest {
 
     @NotNull

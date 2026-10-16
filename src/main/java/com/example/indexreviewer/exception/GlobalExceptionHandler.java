@@ -56,6 +56,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return createResponseEntity(body, new HttpHeaders(), HttpStatus.INTERNAL_SERVER_ERROR, request);
     }
 
+    /**
+     * Bean Validation failures on controller parameters, e.g. a file part that is empty or not a .csv file
+     * ({@code @CsvFile}), a null config field ({@code @NotNull}) or a cut-off date after the review date
+     * ({@code @ValidReviewDates}). Collects every failed check into one response.
+     */
     @Override
     protected ResponseEntity<Object> handleHandlerMethodValidationException(
         HandlerMethodValidationException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
@@ -74,6 +79,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(ex, new ErrorResponse(errors), headers, status, request);
     }
 
+    /**
+     * Bean Validation failures on a {@code @Valid} request object when Spring validates it on its own, without
+     * method validation. Kept as a fallback so these errors use the same response format.
+     */
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(
         MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
@@ -82,6 +91,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(ex, new ErrorResponse(errors), headers, status, request);
     }
 
+    /**
+     * A required multipart part is missing, i.e. the universe, securityData or composition CSV file was not
+     * uploaded. Spring reports only the first missing part.
+     */
     @Override
     protected ResponseEntity<Object> handleMissingServletRequestPart(
         MissingServletRequestPartException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
@@ -92,6 +105,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(ex, new ErrorResponse(List.of(error)), headers, status, request);
     }
 
+    /**
+     * The JSON in the configRequest part or the request body cannot be read: malformed JSON, an unknown
+     * index type or a date that is not in ISO format. Jackson stops at the first invalid value.
+     */
     @Override
     protected ResponseEntity<Object> handleHttpMessageNotReadable(
         HttpMessageNotReadableException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
@@ -100,6 +117,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(ex, body, headers, status, request);
     }
 
+    /**
+     * A query or path parameter cannot be converted to its type, e.g. an unknown indexType or a cutoffDate that
+     * is not an ISO date in GET /v1/reviews.
+     */
     @Override
     protected ResponseEntity<Object> handleTypeMismatch(
         TypeMismatchException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
@@ -111,6 +132,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(ex, new ErrorResponse(List.of(error)), headers, status, request);
     }
 
+    /**
+     * Last step for every error handled by this class. Converts any remaining Spring ProblemDetail body into an
+     * ErrorResponse and fills in status, title and the request path.
+     */
     @Override
     protected ResponseEntity<Object> createResponseEntity(
         Object body, HttpHeaders headers, HttpStatusCode statusCode, WebRequest request) {

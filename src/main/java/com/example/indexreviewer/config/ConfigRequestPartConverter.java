@@ -9,8 +9,8 @@ import tools.jackson.databind.json.JsonMapper;
 import java.util.List;
 
 /**
- * Reads the JSON {@code configRequest} multipart part when the client sends it without a Content-Type,
- * which Swagger UI and plain curl do. Such parts arrive as application/octet-stream.
+ * Config/Fix to handle Swagger UI requests. Reads the JSON {@code configRequest} multipart when the client sends it
+ * without a Content-Type, which Swagger UI and plain curl do. Such parts arrive as application/octet-stream.
  */
 public class ConfigRequestPartConverter extends JacksonJsonHttpMessageConverter {
 
