@@ -1,20 +1,22 @@
 ## Start here
 
-This is an empty Java project scaffold: no Java classes or tests are included. Maven's conventional src/main/java,
-src/main/resources, src/test/java, and src/test/resources folders are retained with .gitkeep files.
+TODO add instructions to setup and run the project.
 
-The Java compiler target and build dependencies are defined in [pom.xml](pom.xml). No application framework or
-test-library dependency is selected.
+!!!  TODO  !!!  add instructions also how to run this via the cmd line with file upload
 
-Read [docs/README.md](docs/README.md) for the AI setup map. Standing rules live in [CLAUDE.md](CLAUDE.md), with task skills,
-agent definitions, shared references, and project guides linked from that map.
-
-Build gates, profile overrides, and IDE setup live in [development setup](docs/development.md).
+++ add details in readme that SWAGGER is available at /swagger-ui.html
 
 ## Working commands
 
 - `./mvnw verify`: build and run all checks currently configured in pom.xml.
-- `git diff`: inspect tracked changes before committing.
 
-An empty-build success verifies tooling, not application behavior or tests. Do not add a framework, database, or
-application code until a feature needs it.
+## Documentation and Agentic setup
+
+The project was developed with the aid of Claude. The setup files (agents, skill, plugins) are kept on purpose in this
+project to provide clarity on what and how the agent setup was done.
+
+Read the [docs/README-AI.md](docs/README-AI.md) for the Agentic setup map.
+Standing prompt/rules live in [CLAUDE.md](CLAUDE.md), with task skills, agent definitions, shared references, and
+project guides linked from that map.
+
+Project documentation is present in the [docs](docs) directory, in .md files.

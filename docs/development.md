@@ -38,14 +38,14 @@ desktop interface; they do not configure an ordinary Claude chat.
 
 ## Quality profiles
 
-Maven and the Java helpers default to ~/git/java/ide_settings/java/quality. The external files are:
+The quality profiles live in the project root, and Maven and the Java helpers read them from there:
 
-- checkstyle.xml: Checkstyle rules, severities, and exclusions.
-- intellij-code-style.xml: IntelliJ scheme JavaCodeStyle.
-- intellij-inspections.xml: IntelliJ profile JavaInspections.
+- [checkstyle_rules.xml](../checkstyle_rules.xml): Checkstyle rules, severities, and exclusions.
+- [code_style_formatter.xml](../code_style_formatter.xml): IntelliJ scheme JavaCodeStyle.
+- [intelij_inspections.xml](../intelij_inspections.xml): IntelliJ profile JavaInspections.
 
-Provision the profiles required by each tool on another machine or in CI. Maven accepts
-`-Djava.quality.dir=/absolute/profile/folder`; the Java helpers accept JAVA_QUALITY_DIR.
+To use profiles from another folder, Maven accepts `-Djava.quality.dir=/absolute/profile/folder`; the Java helpers
+accept JAVA_QUALITY_DIR. The folder must contain files with the same names.
 
 ## Commands
 

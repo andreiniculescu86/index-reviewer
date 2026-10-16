@@ -1,0 +1,237 @@
+package com.example.indexreviewer.exception;
+
+import com.example.indexreviewer.dto.response.error.Error;
+import com.example.indexreviewer.dto.response.error.ErrorCode;
+import com.example.indexreviewer.dto.response.error.ErrorResponse;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.TypeMismatchException;
+import org.springframework.context.MessageSourceResolvable;
+import org.springframework.core.MethodParameter;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.Errors;
+import org.springframework.validation.FieldError;
+import org.springframework.validation.method.ParameterErrors;
+import org.springframework.validation.method.ParameterValidationResult;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.ServletWebRequest;
+import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.exc.StreamReadException;
+import tools.jackson.databind.exc.InvalidFormatException;
+import tools.jackson.databind.exc.MismatchedInputException;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@Slf4j
+@RestControllerAdvice
+public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+
+    private static final Map<String, ErrorCode> CONSTRAINT_CODES = Map.of(
+        "NotNull", ErrorCode.MISSING_VALUE,
+        "CsvFile", ErrorCode.INVALID_FILE,
+        "ValidReviewDates", ErrorCode.INVALID_DATE_RANGE);
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Object> handleUnexpected(Exception ex, WebRequest request) {
+        log.error("Unexpected error while handling a request", ex);
+        ErrorResponse body = ErrorResponse.of(ErrorCode.INTERNAL_ERROR, "Unexpected error. Check the server logs.");
+        return createResponseEntity(body, new HttpHeaders(), HttpStatus.INTERNAL_SERVER_ERROR, request);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleHandlerMethodValidationException(
+        HandlerMethodValidationException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+
+        List<Error> errors = new ArrayList<>();
+        for (ParameterValidationResult result : ex.getParameterValidationResults()) {
+            String parameter = parameterName(result.getMethodParameter());
+            if (result instanceof ParameterErrors parameterErrors) {
+                errors.addAll(bindingErrors(parameter, parameterErrors));
+            } else {
+                String value = displayValue(result.getArgument());
+                result.getResolvableErrors().forEach(error -> errors.add(
+                    new Error(codeFor(error), parameter, value, error.getDefaultMessage())));
+            }
+        }
+        return handleExceptionInternal(ex, new ErrorResponse(errors), headers, status, request);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(
+        MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+
+        List<Error> errors = bindingErrors(parameterName(ex.getParameter()), ex.getBindingResult());
+        return handleExceptionInternal(ex, new ErrorResponse(errors), headers, status, request);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleMissingServletRequestPart(
+        MissingServletRequestPartException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+
+        String part = ex.getRequestPartName();
+        Error error = new Error(ErrorCode.MISSING_FILE, part, null,
+            "Required CSV file '%s' is missing. Upload it as a file in the multipart part '%s'.".formatted(part, part));
+        return handleExceptionInternal(ex, new ErrorResponse(List.of(error)), headers, status, request);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleHttpMessageNotReadable(
+        HttpMessageNotReadableException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+
+        ErrorResponse body = new ErrorResponse(List.of(unreadableJsonError(ex)));
+        return handleExceptionInternal(ex, body, headers, status, request);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleTypeMismatch(
+        TypeMismatchException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+
+        String name = ex instanceof MethodArgumentTypeMismatchException mismatch ? mismatch.getName()
+            : ex.getPropertyName();
+        Error error = new Error(ErrorCode.INVALID_VALUE, name, String.valueOf(ex.getValue()),
+            expectedType(ex.getRequiredType()));
+        return handleExceptionInternal(ex, new ErrorResponse(List.of(error)), headers, status, request);
+    }
+
+    @Override
+    protected ResponseEntity<Object> createResponseEntity(
+        Object body, HttpHeaders headers, HttpStatusCode statusCode, WebRequest request) {
+
+        ErrorResponse errorResponse = toErrorResponse(body, statusCode);
+        errorResponse.setStatus(statusCode.value());
+        HttpStatus httpStatus = HttpStatus.resolve(statusCode.value());
+        errorResponse.setTitle(httpStatus != null ? httpStatus.getReasonPhrase() : null);
+        if (request instanceof ServletWebRequest servletRequest) {
+            errorResponse.setInstance(servletRequest.getRequest().getRequestURI());
+        }
+        return new ResponseEntity<>(errorResponse, headers, statusCode);
+    }
+
+    private static ErrorResponse toErrorResponse(Object body, HttpStatusCode statusCode) {
+        if (body instanceof ErrorResponse errorResponse) {
+            return errorResponse;
+        }
+        ErrorCode code = statusCode.is5xxServerError() ? ErrorCode.INTERNAL_ERROR : ErrorCode.INVALID_REQUEST;
+        String detail = body instanceof ProblemDetail problem ? problem.getDetail() : null;
+        return ErrorResponse.of(code, detail);
+    }
+
+    private static List<Error> bindingErrors(String parameter, Errors errors) {
+        List<Error> result = new ArrayList<>();
+        for (FieldError error : errors.getFieldErrors()) {
+            result.add(new Error(codeFor(error), parameter + "." + error.getField(),
+                displayValue(error.getRejectedValue()), error.getDefaultMessage()));
+        }
+        errors.getGlobalErrors().forEach(error -> result.add(
+            new Error(codeFor(error), parameter, null, error.getDefaultMessage())));
+        return result;
+    }
+
+    private static ErrorCode codeFor(MessageSourceResolvable error) {
+        String[] codes = error.getCodes();
+        String constraint = codes == null || codes.length == 0 ? "" : codes[codes.length - 1];
+        return CONSTRAINT_CODES.getOrDefault(constraint, ErrorCode.INVALID_VALUE);
+    }
+
+    private static Error unreadableJsonError(HttpMessageNotReadableException ex) {
+        InvalidFormatException invalidFormat = findCause(ex, InvalidFormatException.class);
+        if (invalidFormat != null) {
+            return new Error(ErrorCode.INVALID_VALUE, jsonPath(invalidFormat), String.valueOf(invalidFormat.getValue()),
+                expectedType(invalidFormat.getTargetType()));
+        }
+        MismatchedInputException mismatchedInput = findCause(ex, MismatchedInputException.class);
+        if (mismatchedInput != null && mismatchedInput.getTargetType() != null) {
+            return new Error(ErrorCode.INVALID_VALUE, jsonPath(mismatchedInput), null,
+                expectedType(mismatchedInput.getTargetType()));
+        }
+        StreamReadException malformed = findCause(ex, StreamReadException.class);
+        if (malformed != null && malformed.getLocation() != null) {
+            return new Error(ErrorCode.MALFORMED_JSON, "malformed JSON at line %d, column %d"
+                .formatted(malformed.getLocation().getLineNr(), malformed.getLocation().getColumnNr()));
+        }
+        return new Error(ErrorCode.MALFORMED_JSON, "request body or JSON part could not be read");
+    }
+
+
+    private static String expectedType(Class<?> type) {
+        if (type == null) {
+            return "unexpected value type";
+        }
+        if (type.isEnum()) {
+            return "allowed values: " + Arrays.stream(type.getEnumConstants())
+                .map(Object::toString)
+                .collect(Collectors.joining(", "));
+        }
+        if (LocalDate.class.equals(type)) {
+            return "expected an ISO date (yyyy-MM-dd)";
+        }
+        return "expected type " + type.getSimpleName();
+    }
+
+    private static String displayValue(Object value) {
+        if (value instanceof MultipartFile file) {
+            return file.getOriginalFilename();
+        }
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private static String jsonPath(JacksonException ex) {
+        List<JacksonException.Reference> path = ex.getPath();
+        StringBuilder field = new StringBuilder(rootName(path));
+        for (JacksonException.Reference reference : path) {
+            if (reference.getPropertyName() != null) {
+                field.append('.').append(reference.getPropertyName());
+            } else if (reference.getIndex() >= 0) {
+                field.append('[').append(reference.getIndex()).append(']');
+            }
+        }
+        return field.toString();
+    }
+
+    private static String rootName(List<JacksonException.Reference> path) {
+        if (path.isEmpty() || path.getFirst().from() == null) {
+            return "body";
+        }
+        Object root = path.getFirst().from();
+        String simpleName = (root instanceof Class<?> type ? type : root.getClass()).getSimpleName();
+        return Character.toLowerCase(simpleName.charAt(0)) + simpleName.substring(1);
+    }
+
+    private static <T extends Throwable> T findCause(Throwable throwable, Class<T> type) {
+        for (Throwable current = throwable; current != null; current = current.getCause()) {
+            if (type.isInstance(current)) {
+                return type.cast(current);
+            }
+        }
+        return null;
+    }
+
+    private static String parameterName(MethodParameter parameter) {
+        RequestPart requestPart = parameter.getParameterAnnotation(RequestPart.class);
+        if (requestPart != null) {
+            String name = requestPart.name().isEmpty() ? requestPart.value() : requestPart.name();
+            if (!name.isEmpty()) {
+                return name;
+            }
+        }
+        return parameter.getParameterName();
+    }
+}

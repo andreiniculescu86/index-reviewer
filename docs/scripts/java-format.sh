@@ -4,7 +4,7 @@
 # Set IDEA_HOME to your IntelliJ installation directory on another machine.
 set -eu
 project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
-quality_dir=${JAVA_QUALITY_DIR:-"$HOME/git/java/ide_settings/java/quality"}
+quality_dir=${JAVA_QUALITY_DIR:-"$project_dir"}
 idea_dir=${IDEA_HOME:-/Applications/IntelliJ IDEA.app}
 if [ "$#" -eq 0 ]; then
   echo "Pass changed Java file paths; no files were formatted." >&2
@@ -14,4 +14,4 @@ for file in "$@"; do
   case "$file" in *.java) ;; *) echo "Only Java files are supported: $file" >&2; exit 2 ;; esac
   [ -f "$file" ] || { echo "Missing file: $file" >&2; exit 2; }
 done
-exec "$idea_dir/Contents/bin/format.sh" -s "$quality_dir/intellij-code-style.xml" "$@"
+exec "$idea_dir/Contents/bin/format.sh" -s "$quality_dir/code_style_formatter.xml" "$@"

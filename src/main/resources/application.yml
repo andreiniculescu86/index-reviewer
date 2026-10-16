@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: index-reviewer
+    version: '@project.version@'
+
+server:
+  shutdown: graceful
+  port: 8096
+
+logging:
+  level:
+    root: INFO
+    io.swagger.models.parameters.AbstractSerializableParameter: ERROR
+    org:
+      springframework:
+        web: INFO
+        cloud: ERROR
+
+springdoc:
+  swagger-ui:
+    use-root-path: true
+    operationsSorter: method
+    display-request-duration: true
+    url: /v3/api-docs
+    doc-expansion: none

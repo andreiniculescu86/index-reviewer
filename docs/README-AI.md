@@ -59,6 +59,8 @@ application's evolving setup and behavior.
 - [MCP servers](../.mcp.json): project-scoped Serena and Context7 connections.
 - [Serena configuration](../.serena/project.yml): semantic navigation settings.
 - [Maven build](../pom.xml): selected Java/dependency versions and configured build checks.
+- Quality profiles: [Checkstyle rules](../checkstyle_rules.xml), [IntelliJ formatter](../code_style_formatter.xml) and
+  [IntelliJ inspections](../intelij_inspections.xml) used by Maven and the helper scripts.
 - [Helper scripts](scripts/): Java formatting and inspections.
 - Personal Claude configuration, globally installed skills/plugins, and authentication live outside this repository.
 

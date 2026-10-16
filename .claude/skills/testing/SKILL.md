@@ -32,8 +32,9 @@ race and partial-failure behavior when the owning infrastructure exists.
 
 Do not add explanatory comments in the test code, especially the inline comments.
 
-Name methods operation_whenCondition_expectOutcome, unit-test classes *Test and integration-test classes *IT. Confirm
-runner discovery for both. Separate arrange, act and assert with blank lines. Use descriptive inputs and expected
+Name methods operation_whenCondition_expectOutcome, unit-test classes *Test and integration-test classes *IT.
+Keep test method names under 50 characters, but still to have meaning. Confirm runner discovery for both.
+Separate arrange, act and assert with blank lines. Use descriptive inputs and expected
 values. Construct the tested object directly for ordinary business logic, validators and mappers. Mock external
 collaborators, not the tested object or simple data. Verify interactions only when they express a meaningful contract.
 
