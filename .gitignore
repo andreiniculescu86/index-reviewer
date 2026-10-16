@@ -1,0 +1,15 @@
+# Build output
+/target/
+
+# Machine and IDE state
+/.DS_Store
+/.idea/
+
+# Local Serena override
+/.serena/project.local.yml
+
+# Local Claude Code overrides
+/.claude/settings.local.json
+
+# Assignment materials (kept local)
+/SIX Index IT - Home Assignment/
