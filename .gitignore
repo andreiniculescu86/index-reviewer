@@ -4,6 +4,7 @@
 # Machine and IDE state
 /.DS_Store
 /.idea/
+*.iml
 
 # Local Serena override
 /.serena/project.local.yml
