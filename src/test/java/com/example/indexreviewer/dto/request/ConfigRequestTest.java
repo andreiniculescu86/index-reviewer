@@ -1,5 +1,6 @@
 package com.example.indexreviewer.dto.request;
 
+import com.example.indexreviewer.model.IndexType;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 

@@ -1,6 +1,6 @@
 # AI setup map
 
-This folder explains where the project's AI guidance lives. Read the linked files for current rules and settings.
+This file explains where the project's AI guidance lives. Read the linked files for current rules and settings.
 
 ## Standing rules
 
@@ -51,6 +51,7 @@ application's evolving setup and behavior.
 - [Architecture guide](architecture.md): service purposes, external systems, and main flow diagrams.
 - [Testing guide](testing.md): this application's test suites, fixtures, services, setup, and commands.
 - [Development setup](development.md): build gates, quality profiles, commands, overrides, and IDE setup.
+- [Data validation](data-validation.md): service-layer review data checks, errors and warnings.
 - Git permissions and standing rules live in [CLAUDE.md](../CLAUDE.md); requested commit and PR/MR procedures live in
   the [project-review skill](../.claude/skills/project-review/SKILL.md#requested-commits-and-prmr-drafts).
 

@@ -26,9 +26,8 @@ public interface ReviewSwaggerDocs {
     @Target({ElementType.METHOD})
     @Retention(RetentionPolicy.RUNTIME)
     @Operation(summary = "Run a review using uploaded CSV files",
-        description = "Runs the review of the selected index for the given cut-off and review dates. The same three "
-            + "files are required for every index; their content belongs to the selected index. Files with invalid "
-            + "content produce a stored review with status FAILED, not an HTTP error.")
+        description = "Runs the review of the selected index for the given cut-off and review dates."
+            + "Currently, only the SMI index is allowed. Files are mandatory to be uploaded.")
     @ApiResponse(responseCode = "201", description = "Review executed and stored. The Location header points to it.")
     @ApiResponse(responseCode = "400", description = "A file part is missing, empty or not a .csv file, the request "
         + "part is malformed, or the cut-off date is after the review date.",

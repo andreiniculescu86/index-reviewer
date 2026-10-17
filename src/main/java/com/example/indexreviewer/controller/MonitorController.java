@@ -23,7 +23,11 @@ public class MonitorController {
 
     @GetMapping(path = "/reviews/{reviewId}/securities/{securityId}", produces = MediaType.APPLICATION_JSON_VALUE)
     @MonitorSwaggerDocs.GetReviewSecurity
-    public void getReviewSecurity(@PathVariable String reviewId, @PathVariable String securityId) {
+    public void getReviewSecurity(@PathVariable String reviewId, @PathVariable Integer securityId) {
+    }
+
+    private static boolean isHeavy(int a, int b, int c) {
+        return a > 0;
     }
 //
 //    @GetMapping(path = "/reviews/{reviewId}/manifest", produces = MediaType.APPLICATION_JSON_VALUE)

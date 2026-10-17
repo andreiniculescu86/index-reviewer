@@ -57,6 +57,40 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /**
+     * An uploaded CSV file cannot be parsed: a required header is missing, a value has the wrong type or a line
+     * is malformed. The field names the upload part, e.g. universe.
+     */
+    @ExceptionHandler(InvalidCsvFileException.class)
+    public ResponseEntity<Object> handleInvalidCsvFile(InvalidCsvFileException ex, WebRequest request) {
+        Error error = new Error(ErrorCode.INVALID_FILE, ex.getPart(), null, ex.getMessage());
+        return createResponseEntity(new ErrorResponse(List.of(error)), new HttpHeaders(), HttpStatus.BAD_REQUEST,
+            request);
+    }
+
+    /**
+     * The review data contains invalid values, e.g. a price, shares or free float that is not positive, or
+     * conflicting rows. Returns one error per invalid value found.
+     */
+    @ExceptionHandler(InvalidReviewDataException.class)
+    public ResponseEntity<Object> handleInvalidReviewData(InvalidReviewDataException ex, WebRequest request) {
+        List<Error> errors = ex.getErrors().stream()
+            .map(message -> new Error(ErrorCode.INVALID_VALUE, message))
+            .toList();
+        return createResponseEntity(new ErrorResponse(errors), new HttpHeaders(), HttpStatus.BAD_REQUEST, request);
+    }
+
+    /**
+     * The requested index type has no review implementation.
+     */
+    @ExceptionHandler(IndexNotConfiguredException.class)
+    public ResponseEntity<Object> handleIndexNotConfigured(IndexNotConfiguredException ex, WebRequest request) {
+        Error error = new Error(ErrorCode.INDEX_NOT_CONFIGURED, "indexType", String.valueOf(ex.getIndexType()),
+            ex.getMessage());
+        return createResponseEntity(new ErrorResponse(List.of(error)), new HttpHeaders(),
+            HttpStatus.UNPROCESSABLE_CONTENT, request);
+    }
+
+    /**
      * Bean Validation failures on controller parameters, e.g. a file part that is empty or not a .csv file
      * ({@code @CsvFile}), a null config field ({@code @NotNull}) or a cut-off date after the review date
      * ({@code @ValidReviewDates}). Collects every failed check into one response.

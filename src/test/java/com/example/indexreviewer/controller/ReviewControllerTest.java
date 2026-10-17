@@ -1,7 +1,10 @@
 package com.example.indexreviewer.controller;
 
 import com.example.indexreviewer.config.ConfigRequestPartConverter;
+import com.example.indexreviewer.controller.mapper.ReviewCommandMapperImpl;
 import com.example.indexreviewer.exception.GlobalExceptionHandler;
+import com.example.indexreviewer.repository.csv.CsvFileReaderFactory;
+import com.example.indexreviewer.service.ReviewService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -25,6 +28,7 @@ import static com.example.indexreviewer.dto.response.error.ErrorCode.MALFORMED_J
 import static com.example.indexreviewer.dto.response.error.ErrorCode.MISSING_FILE;
 import static com.example.indexreviewer.dto.response.error.ErrorCode.MISSING_VALUE;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.mockito.Mockito.mock;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -41,7 +45,9 @@ class ReviewControllerTest {
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
         JacksonJsonHttpMessageConverter jsonConverter = new JacksonJsonHttpMessageConverter();
-        mockMvc = MockMvcBuilders.standaloneSetup(new ReviewController())
+        ReviewController controller = new ReviewController(new CsvFileReaderFactory(),
+            new ReviewCommandMapperImpl(), mock(ReviewService.class));
+        mockMvc = MockMvcBuilders.standaloneSetup(controller)
             .setControllerAdvice(new GlobalExceptionHandler())
             .setValidator(validator)
             .setMessageConverters(jsonConverter, new ConfigRequestPartConverter(jsonConverter.getMapper()))

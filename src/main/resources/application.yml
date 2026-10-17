@@ -7,14 +7,12 @@ server:
   shutdown: graceful
   port: 8096
 
-logging:
-  level:
-    root: INFO
-    io.swagger.models.parameters.AbstractSerializableParameter: ERROR
-    org:
-      springframework:
-        web: INFO
-        cloud: ERROR
+indices:
+  smi:
+    number-of-components: 20
+    direct-selection-rank: 18
+    buffer-rank: 22
+    cap-percentage: 18
 
 springdoc:
   swagger-ui:
@@ -23,3 +21,12 @@ springdoc:
     display-request-duration: true
     url: /v3/api-docs
     doc-expansion: none
+
+logging:
+  level:
+    root: INFO
+    io.swagger.models.parameters.AbstractSerializableParameter: ERROR
+    org:
+      springframework:
+        web: INFO
+        cloud: ERROR

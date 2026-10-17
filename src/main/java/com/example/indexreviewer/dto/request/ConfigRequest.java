@@ -1,5 +1,6 @@
 package com.example.indexreviewer.dto.request;
 
+import com.example.indexreviewer.model.IndexType;
 import com.example.indexreviewer.validation.ValidReviewDates;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
@@ -37,4 +38,10 @@ public class ConfigRequest {
         + "date. Must not be before the cut-off date. Defaults to 2026-09-21.",
         example = "2026-09-21", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private LocalDate reviewDate = LocalDate.of(2026, 9, 21);
+
+    @NotNull
+    @Builder.Default
+    @Schema(description = "Column separator of the uploaded CSV files. Defaults to ';'.", example = ";",
+        requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    private Character csvSeparator = ';';
 }

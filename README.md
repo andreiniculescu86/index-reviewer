@@ -10,6 +10,19 @@ TODO add instructions to setup and run the project.
 
 - `./mvnw verify`: build and run all checks currently configured in pom.xml.
 
+## Future development
+
+!!!  TODO -- change  !!!!
+
+Currently the project reads the data from the files in memory, everything at once, before starting the process. This is
+due to the way the data is spread across the 3 files.
+If the files and the universe are huge, then this way of receving the data is not efficient, both for parallelization
+and
+memory usage.
+Ideally, data should be accessed from a database or via APIs, of if files are kept, these have to be set up in a way so
+that the file rows can be read one by one, each row containing the required data not to require the read of the entire
+file in memory.
+
 ## Documentation and Agentic setup
 
 The project was developed with the aid of Claude. The setup files (agents, skill, plugins) are kept on purpose in this
@@ -20,3 +33,5 @@ Standing prompt/rules live in [CLAUDE.md](CLAUDE.md), with task skills, agent de
 project guides linked from that map.
 
 Project documentation is present in the [docs](docs) directory, in .md files.
+
+- [Data validation](docs/data-validation.md): errors and warnings of the review data checks in the service layer.
