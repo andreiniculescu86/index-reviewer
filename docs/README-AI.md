@@ -51,7 +51,7 @@ application's evolving setup and behavior.
 - [Architecture guide](architecture.md): service purposes, external systems, and main flow diagrams.
 - [API reference](api.md): endpoints, request parts, response models and HTTP statuses, for reviewers.
 - [Build and run](../README.md#build-and-run): build gates, tests and Checkstyle.
-- [Design decisions](design-decisions.md): technical choices, the alternatives considered and the reasons.
+- [Assumptions and design decisions](design-decisions.md): assumptions where the assignment is open, technical choices.
 - [Methodology](methodology.md): review rules, tie handling, buffer selection and rulebook assumptions.
 - [Data validation](data-validation.md): service-layer review data checks, errors and warnings.
 - [Traceability](traceability-and-auditability.md): traceability and audit of stored review executions, with examples.

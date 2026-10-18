@@ -1,7 +1,8 @@
 # Review methodology
 
 How the application reviews the SMI. It follows the assignment and the SIX Swiss Index Methodology Rulebook 3.40 of
-08.06.2026. Rules that the rulebook does not define are marked as **assumption**.
+08.06.2026. Rules that the rulebook does not define are marked as **assumption**; all assumptions are listed in
+[Assumptions and design decisions](design-decisions.md#assumptions).
 
 See also [Data validation](data-validation.md) and [Traceability and audit](traceability-and-auditability.md).
 

@@ -1,142 +1,87 @@
-# Design decisions
+# Assumptions and design decisions
 
-The technical choices behind the Index Reviewer, the alternatives that were considered and why each choice was made.
-The business assumptions of the review itself, such as capping rounds, rounding and ties, are in
-[methodology.md](methodology.md).
+The assignment says: *"The exact implementation details are intentionally left open. You are expected to make
+reasonable assumptions where necessary, document them clearly, and justify their design decisions."*
 
-## API
+This page lists those choices. Rules the assignment or the rulebook fix (FFMCAP formula, dates, 20 components, ranks
+1 to 18 direct, 18% cap, proportional redistribution) are in [Methodology](methodology.md), not here.
 
-### One multipart request per review
+## What the assignment leaves open
 
-`POST /v1/reviews` takes the 3 CSV files and an optional `configRequest` part in one multipart request.
+| Open point in the assignment                    | Choice made                                     | See        |
+|-------------------------------------------------|-------------------------------------------------|------------|
+| "A selection buffer may be considered"          | Buffer applied, current components first        | A1         |
+| How weights are adjusted with capping factors   | Rounds; factor 1 = not capped; 4 decimals       | A2 to A5   |
+| What "weighting factors" are                    | Final weight and capping factor                 | A6         |
+| What "review status" is                         | Most severe finding decides the status          | A7         |
+| What "data validation" checks and how it reacts | Missing data excludes, bad data fails           | A8 to A10  |
+| Ambiguous cases in the rules and the data       | Ties, universe as given, rules without data     | A11 to A14 |
+| How the API looks                               | One upload, one report model, `422` on bad data | D1 to D3   |
+| How to support other indices, dates and rules   | One reviewer per index, rules in config         | D4, D5     |
+| How to make results traceable and auditable     | Findings, trace per step, audit record          | D6, D7     |
 
-| Alternative                                                 | Why not                                            |
-|-------------------------------------------------------------|----------------------------------------------------|
-| Upload market data, universe and composition once, then run | More endpoints and stored inputs; not needed for   |
-| reviews that reference them by id                           | one review per request                             |
-| JSON body with all rows                                     | The input is given as CSV; clients would have to   |
-|                                                             | convert it                                         |
+## Assumptions
 
-The files stay in the format of the assignment. The request adds what the files do not say: the index and the dates.
-The internal model already keeps universe, security data and composition apart, so separate uploads can be added later
-without changing the review logic.
+**Selection**
 
-### One report model for a review
+- **A1. Buffer applied.** Ranks 19 to 22 go to current components first, then to newcomers by rank (rulebook
+  5.12.3.2). *Why:* the assignment allows it, and it is how SIX reviews the SMI: it keeps the index stable.
 
-`POST /v1/reviews`, `GET /v1/reviews/{reviewId}` and `GET /v1/reviews` return the same `ReviewResponse`: constituents,
-joiners, leavers, status and findings. The list returns the same resource as the single read, so a client handles one
-model. The audit data and the trace are separate sub-resources (`/audit`, `/trace`, `/securities/{securityId}`),
-because they answer different questions and are much larger.
+**Weighting**
 
-### HTTP status
+- **A2. Capping in rounds.** Cap every weight above 18%, share the cut weight among the others, repeat until none is
+  above. *Why:* sharing can push another component above the cap; the example needs one round, real data may not.
+- **A3. Capping factor.** A multiplier on FFMCAP: `1` when not capped, below 1 when capped. *Why:* the rulebook gives
+  no formula; it is in a separate SIX calculation rulebook. Formula in [Methodology](methodology.md#assumptions).
+- **A4. 4 decimals.** Weights (`18.0000` = 18%) and capping factors, rounded half up. *Why:* no precision is given.
+- **A5. Rounding leftover to the last constituent.** The few 0.0001 that rounding misses go to the lowest-ranked
+  constituent, so weights sum to exactly 100. *Why:* capped weights stay at exactly 18%, and the result is repeatable.
 
-| Status | When                                                 | Why                                                  |
-|--------|------------------------------------------------------|------------------------------------------------------|
-| `201`  | The review ran, with or without warnings             | A review execution was created and stored            |
-| `422`  | The review ran but failed on data errors             | The request was valid, the data was not; the stored  |
-|        |                                                      | report and its findings are returned                 |
-| `400`  | A file is missing or not CSV, a value or the dates   | The request itself is invalid; nothing is stored     |
-|        | are invalid                                          |                                                      |
+**Report**
 
-A data error is a review outcome, not a request error, so a failed review is stored and traceable like a successful one.
+- **A6. Weighting factors** are the final `weight` and the `cappingFactor` of each constituent. *Why:* the assignment
+  does not define the term; the report shows both the result and how much each component was cut.
+- **A7. Review status** follows the most severe finding: `SUCCESS` (none), `SUCCESS_WITH_WARNINGS`, `FAILED` (a data
+  error), `ERROR` (unexpected failure). *Why:* the term is not defined; the findings in the report explain the status.
 
-## Review flow
+**Data**
 
-### A fixed pipeline of steps per index
+- **A8. Missing data excludes the security with a warning.** No cut-off price or no review-date row (security 166 in
+  Q3 2026). *Why:* the rulebook does not stop a review for missing data (7.1); listings and delistings cause it.
+- **A9. Invalid data fails the review.** Price or shares 0 or negative, free float outside 0 to 1, two different rows
+  for one security and date. *Why:* the rulebook does not use wrong data (7.2); skipping it could drop a top 20
+  security unnoticed.
+- **A10. Identical duplicate rows count once.** *Why:* the assignment universe lists 204 securities twice; identical
+  rows cannot change the result.
 
-`SmiReviewer` runs validation, FFMCAP calculation, selection and weighting in order. Each step returns its result,
-trace records and findings; the reviewer stores them in the trace before the next step starts. A step with an error
-ends the review.
+**Ambiguous cases**
 
-| Alternative                                   | Why not                                                          |
-|-----------------------------------------------|------------------------------------------------------------------|
-| Generic rule engine or configurable pipeline  | More abstraction than one index needs (KISS, YAGNI)              |
-| One service method doing everything           | Steps could not be tested or reused separately                   |
+- **A11. Ties.** Equal FFMCAP ranks current components first, then by composition order, then by lower id, with a
+  `SELECTION_TIE` warning when it decides a seat. *Why:* no rule in the rulebook; its stability principle (1.3).
+- **A12. Universe taken as given.** The SPI 20% free float minimum is not checked again; data outside the universe is
+  ignored; a current component outside the universe leaves. *Why:* the universe is an input of the assignment.
+- **A13. Rules without data are not applied.** Issuer aggregation (5.12.4, no issuer column), the liquidity rule
+  (5.12.3.2, no turnover), the 12-month selection list (4.3, the assignment ranks by FFMCAP), capping between
+  reviews (5.12.4, out of scope).
+- **A14. One currency.** All prices are CHF. *Why:* the data has no currency column.
 
-The steps take the index rules as parameters (`IndexRules`: size, direct selection rank, buffer rank, cap), so they
-are not tied to the SMI values.
+## Design decisions
 
-### Index-specific reviewers behind one interface
-
-`ReviewService` picks the `IndexReviewer` implementation by `IndexType`. Adding an index means adding an
-implementation; the controller and `ReviewService` stay unchanged.
-
-### Rules in configuration
-
-The SMI values (20 components, direct selection up to rank 18, buffer up to rank 22, cap 18%, rulebook version) are in
-`application.yml` and bound to `SmiConfiguration`. Bean Validation checks them at startup, including that the ranks
-are in order and that the cap can be met (`components x cap >= 100`). A wrong configuration stops the application
-instead of producing a wrong review.
-
-### Review dates from the request
-
-The cut-off and review dates come from the request, with the Q3 2026 dates as defaults. Another review period needs
-new data files and dates, not a code change.
-
-## Calculation
-
-### `BigDecimal` for all amounts
-
-FFMCAP, weights and capping factors use `BigDecimal`. `double` would add binary rounding errors to values in the
-hundreds of billions and make the results hard to compare with expected values. Weights and capping factors are
-rounded half up to 4 decimals; FFMCAP is not rounded.
-
-### Capping recalculated from FFMCAP in each round
-
-Each capping round calculates the uncapped weights again from FFMCAP instead of adding redistributed weight to the
-previous round. The result equals the proportional redistribution of the assignment example, and rounding errors do
-not add up over rounds. The formulas are in [methodology.md](methodology.md#weighting-and-capping).
-
-## Data validation
-
-### Findings with severities instead of exceptions
-
-Data problems become findings with a code, a severity, the security id, the field and a message. An `ERROR` fails the
-review, a `WARNING` is handled the same way every time and recorded, an `INFO` changes nothing. The review status
-follows from the most severe finding.
-
-| Alternative                       | Why not                                                                   |
-|-----------------------------------|---------------------------------------------------------------------------|
-| Throw on the first problem        | The client sees one problem at a time and nothing is traceable            |
-| Ignore problems the code can skip | Results would change silently                                             |
-
-Corrupt rows are errors, not warnings: a skipped row could belong to a top 20 security. The checks are listed in
-[data-validation.md](data-validation.md).
-
-### Format checks at the API boundary, data checks in the service
-
-Missing files, wrong file types, the CSV separator and the date order are checked on the request and return `400`.
-Content checks that need all files together, such as missing review-date data, run in the service and become findings.
-
-## Traceability and audit
-
-### Trace stored step by step
-
-The trace is written after every step, so a failed review keeps everything calculated before the error. The report of
-a stored review is derived again from its audit record and trace, so the report and its explanation cannot disagree.
-
-### In-memory storage behind repository interfaces
-
-`ReviewAuditRepository` and `ReviewTraceRepository` have in-memory implementations based on `ConcurrentHashMap`. A
-database is not needed for the assignment and would add setup for the reviewer. Stored reviews are lost on restart;
-the interfaces allow a database implementation without changing the services.
-
-## Libraries
-
-| Library            | Use                                         | Alternative considered                           |
-|--------------------|---------------------------------------------|--------------------------------------------------|
-| Spring Boot WebMVC | REST API, validation, configuration binding | None; the standard choice for a Java REST API    |
-| OpenCSV            | Reading CSV into typed rows                 | Hand-written parsing: more code for quoting,     |
-|                    |                                             | separators and type conversion errors            |
-| MapStruct          | DTO to model mapping                        | Manual mappers: repetitive and easy to get wrong |
-| Lombok             | Value classes and builders                  | Records only: no builders or `@Singular` lists   |
-| springdoc-openapi  | Swagger UI to run reviews without curl      | Static API description: would go out of date     |
-
-## Known limits
-
-- The steps live in the `smi` package although they only depend on `IndexRules`. A second index would move them to a
-  shared package.
-- `IndexRules` describes one buffer and one cap for all components. An index with a tiered cap, such as the SLI
-  (9% for the 4 largest, 4.5% for the rest), needs another capping step.
-- Issuer aggregation, the liquidity rule and the 12-month selection list are not implemented; see
-  [methodology.md](methodology.md#not-implemented).
+- **D1. One multipart request per review**, with the 3 files as given and an optional JSON part for index, dates
+  and separator. *Instead of* uploading files once and referencing them. *Why:* one review needs nothing more.
+- **D2. One report model** for `POST /v1/reviews`, `GET /v1/reviews/{reviewId}` and the list; audit and trace are
+  separate endpoints. *Why:* one resource, one model; audit and trace answer other questions.
+- **D3. Data errors return `422` and are stored**; an invalid request returns `400` and is not. *Why:* the request was
+  valid, the data was not, and a failed review must stay traceable.
+- **D4. One reviewer per index, shared steps.** Each step takes the index rules and returns result, trace and
+  findings. *Instead of* a rule engine. *Why:* a new index adds a reviewer; API, service and steps stay unchanged.
+- **D5. Index rules in `application.yml`**, checked at startup. *Instead of* constants. *Why:* rules change with the
+  rulebook; a wrong rule stops the start instead of producing a wrong index.
+- **D6. Data problems are findings, not exceptions.** All rows are checked and every problem is reported at once,
+  with code, severity, security and field. *Why:* one run shows all problems, and each is stored with the review.
+- **D7. Trace written after each step; report derived from audit record and trace.** *Why:* a failed review keeps
+  what was calculated before the error, and the report cannot disagree with its explanation.
+- **D8. In-memory storage behind repository interfaces.** *Instead of* a database. *Why:* runs without setup; a
+  database can replace it without changing the services. Stored reviews are lost on restart.
+- **D9. Exact decimals; each capping round starts from FFMCAP.** *Instead of* floating point. *Why:* FFMCAPs reach
+  hundreds of billions and results must match exactly; rounding errors do not add up over rounds.

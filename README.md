@@ -124,7 +124,8 @@ Reviews are kept in memory and are lost when the application stops.
 - [Methodology](docs/methodology.md): dates, FFMCAP, ranking, buffer, capping and the assumptions made.
 - [Data validation](docs/data-validation.md): data checks, errors and warnings.
 - [Traceability and audit](docs/traceability-and-auditability.md): what each review stores and how to read it.
-- [Design decisions](docs/design-decisions.md): technical choices, the alternatives and why.
+- [Assumptions and design decisions](docs/design-decisions.md): every assumption made where the assignment is open,
+  and the technical decisions with their alternatives.
 - [API reference](docs/api.md): endpoints, request parts, response models and HTTP statuses.
 - [Architecture](docs/architecture.md): what the service does, its external interactions and the main review flows.
 - [AI setup](docs/README-AI.md): the Claude rules, skills and agents used to build the project. They are kept on

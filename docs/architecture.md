@@ -192,4 +192,4 @@ explanation can never disagree. The models are described in the [API reference](
 - [Methodology](methodology.md): how the review selects, weights and caps, and the assumptions made.
 - [Data validation](data-validation.md): which input problems are errors and which are warnings.
 - [Traceability and audit](traceability-and-auditability.md): what a review stores and how to read it.
-- [Design decisions](design-decisions.md): technical choices, the alternatives and why.
+- [Assumptions and design decisions](design-decisions.md): the assumptions made and the technical decisions.
