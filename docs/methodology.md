@@ -108,7 +108,8 @@ From the assignment and the rulebook (sections 2.1, 5.12.4):
 - a weight above 18% is cut to exactly 18% with a capping factor;
 - the cut weight goes to the other components in proportion to their weight.
 
-Weights are percentages, `18` for 18%, with 4 decimals, and add up to exactly 100.
+Weights are percentages, `18` for 18%, with 4 decimals, and add up to exactly 100. Capping factors have 10
+significant digits.
 
 ### Assumptions
 
@@ -119,12 +120,15 @@ The rulebook gives no formula. It is in a separate SIX calculation rulebook that
 2. **Each round starts from FFMCAP.** Capped components get the cap. The others get
    `remaining weight x FFMCAP / FFMCAP of all uncapped`, with `remaining weight = 100 - cap x number capped`. This
    equals the proportional sharing, without rounding errors adding up over rounds.
-3. **Capping factor.** 1 when not capped. When capped:
-   `cap x FFMCAP of all uncapped / (remaining weight x FFMCAP)`. `FFMCAP x capping factor` then gives the capped
-   weights. The scale is a convention: 1 means "not capped".
-4. **4 decimals.** Every division is rounded half up to 4 decimals.
-5. **Rounding leftover.** The rounded weights can miss 100 by a few 0.0001. The difference goes to the last
-   component, the lowest rank. A weight above the cap then gives an `INVALID_WEIGHTS` error, see
+3. **Capping factor.** 1 when not capped. When capped: `cap x FFMCAP of all uncapped / (remaining weight x FFMCAP)`.
+   `FFMCAP x capping factor` is the capped market capitalization; divided by the sum over all components it gives the
+   weight. The scale is a convention: 1 means "not capped". The factor has 10 significant digits (`0.5653526015`), so
+   that `FFMCAP x capping factor` reproduces the weights to well below 0.0001.
+4. **Largest remainder rounding.** Every weight is rounded down to 4 decimals. The 0.0001 units still missing to 100
+   go one each to the weights with the largest rounding remainders; on equal remainders the higher rank goes first.
+   Every weight stays within 0.0001 of its exact value, and the weights add up to exactly 100.
+5. **Final check.** The review fails with `INVALID_WEIGHTS` when a weight is above the cap or negative, the weights
+   do not add up to 100, or `FFMCAP x capping factor` does not reproduce a weight within 0.0001, see
    [finding codes](traceability-and-auditability.md#finding-codes). With a valid configuration this cannot happen.
 
 **Example.** Components A, B, C, D with FFMCAP 50, 30, 15, 5 and a cap of 35%:
@@ -135,12 +139,13 @@ The rulebook gives no formula. It is in a separate SIX calculation rulebook that
 | 2     | A 35, B 39, C 19.5, D 6.5 | B            |
 | 3     | A 35, B 35, C 22.5, D 7.5 | none, stop   |
 
-Capping factors: A `35 x 20 / (30 x 50) = 0.4667`, B `35 x 20 / (30 x 30) = 0.7778`, C and D `1`.
+Capping factors: A `35 x 20 / (30 x 50) = 0.4666666667`, B `35 x 20 / (30 x 30) = 0.7777777778`, C and D `1`.
 `WeightCalculatorStepTest` checks a two-round example with 5 components and a cap of 21%.
 
 **Q3 2026 result.** Securities 155 and 205 weigh 25.42% and 23.49% before capping. Both are capped at 18%, with
-capping factors 0.5654 and 0.6117. The rounded weights add up to 99.9998%, so security 81, the last component, gets
-0.0002% and ends at 0.8505%. `SmiReviewerTest` checks this.
+capping factors 0.5653526015 and 0.6117362279. Rounded down, the weights add up to 99.9991%; the 9 missing units of
+0.0001 go to the 9 weights with the largest remainders, for example security 63 ends at 14.2591% (exact 14.259043%).
+`SmiReviewerTest` checks this.
 
 ## Joiners and leavers
 

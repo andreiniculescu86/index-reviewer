@@ -60,7 +60,8 @@ application's evolving setup and behavior.
 
 ## Configuration and tools
 
-- [MCP servers](../.mcp.json): project-scoped Serena and Context7 connections.
+- MCP servers: project-scoped Serena and Context7 connections in a local `.mcp.json`. The file is not committed,
+  because it points to locally installed tools (`${HOME}/.local/bin/serena`).
 - [Serena configuration](../.serena/project.yml): semantic navigation settings.
 - [Maven build](../pom.xml): selected Java/dependency versions and configured build checks.
 - Quality profiles: [Checkstyle rules](../checkstyle_rules.xml), [IntelliJ formatter](../code_style_formatter.xml) and

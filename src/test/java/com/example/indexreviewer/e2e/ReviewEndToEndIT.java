@@ -57,9 +57,9 @@ class ReviewEndToEndIT {
             280, 309, 317, 270, 95, 43, 311, 253, 160, 81);
         assertThat(ids(report.path("joiners"))).containsExactly(177);
         assertThat(ids(report.path("leavers"))).containsExactly(103);
-        assertConstituent(report, 155, "18.0000", "0.5654");
-        assertConstituent(report, 205, "18.0000", "0.6117");
-        assertConstituent(report, 81, "0.8505", "1");
+        assertConstituent(report, 155, "18.0000", "0.5653526015");
+        assertConstituent(report, 205, "18.0000", "0.6117362279");
+        assertConstituent(report, 81, "0.8503", "1");
 
         String reviewId = report.path("reviewId").asString();
         assertThat(get("/v1/reviews/" + reviewId).body()).isEqualTo(report);
@@ -106,11 +106,11 @@ class ReviewEndToEndIT {
         assertThat(result.status()).isEqualTo(201);
         JsonNode report = result.body();
         assertValidIndex(report);
-        assertConstituent(report, 201, "18.0000", "0.6975");
-        assertConstituent(report, 202, "18.0000", "0.9693");
+        assertConstituent(report, 201, "18.0000", "0.6974560976");
+        assertConstituent(report, 202, "18.0000", "0.9693457626");
         assertConstituent(report, 203, "14.4777", "1");
         assertConstituent(report, 219, "0.3497", "1");
-        assertConstituent(report, 220, "0.2096", "1");
+        assertConstituent(report, 220, "0.2098", "1");
         assertThat(report.path("constituents").valueStream()
             .filter(constituent -> constituent.path("cappingFactor").decimalValue().compareTo(BigDecimal.ONE) < 0)
             .map(constituent -> constituent.path("securityId").asInt())
@@ -212,7 +212,7 @@ class ReviewEndToEndIT {
         assertThat(ids(report.path("leavers"))).containsExactly(102);
         assertConstituent(report, 123, "12.0125", "1");
         assertConstituent(report, 101, "5.1482", "1");
-        assertConstituent(report, 120, "4.1599", "1");
+        assertConstituent(report, 120, "4.1601", "1");
         JsonNode trace = traceOf(report);
         assertThat(security(trace, 123).path("price").decimalValue()).isEqualByComparingTo("962.5");
         assertThat(security(trace, 123).path("shares").decimalValue()).isEqualByComparingTo("3000000");
@@ -271,15 +271,15 @@ class ReviewEndToEndIT {
         JsonNode report = result.body();
         assertThat(report.path("status").asString()).isEqualTo("SUCCESS");
         assertValidIndex(report);
-        assertConstituent(report, 401, "18.0000", "0.2965");
-        assertConstituent(report, 402, "18.0000", "0.7413");
-        assertConstituent(report, 403, "18.0000", "0.9266");
-        assertConstituent(report, 404, "18.0000", "0.9643");
+        assertConstituent(report, 401, "18.0000", "0.2965178571");
+        assertConstituent(report, 402, "18.0000", "0.7412946429");
+        assertConstituent(report, 403, "18.0000", "0.9266183036");
+        assertConstituent(report, 404, "18.0000", "0.9642857143");
         assertConstituent(report, 405, "2.8835", "1");
         assertConstituent(report, 420, "0.6829", "1");
         JsonNode trace = traceOf(report);
         assertThat(security(trace, 403).path("weight").decimalValue()).isEqualByComparingTo("18.0000");
-        assertThat(security(trace, 403).path("cappingFactor").decimalValue()).isEqualByComparingTo("0.9266");
+        assertThat(security(trace, 403).path("cappingFactor").decimalValue()).isEqualByComparingTo("0.9266183036");
     }
 
     @Test
@@ -420,7 +420,7 @@ class ReviewEndToEndIT {
             .map(constituent -> constituent.path("cappingFactor").decimalValue()))
             .allSatisfy(cappingFactor -> assertThat(cappingFactor).isEqualByComparingTo("1"));
         assertConstituent(report, 101, "6.3303", "1");
-        assertConstituent(report, 120, "3.9178", "1");
+        assertConstituent(report, 120, "3.9177", "1");
         assertThat(ids(report.path("leavers"))).isEmpty();
         assertThat(security(traceOf(report), 101).path("freeFloat").decimalValue()).isEqualByComparingTo("1");
     }

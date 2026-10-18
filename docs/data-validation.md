@@ -19,37 +19,43 @@ The full list of finding codes is in [Traceability](traceability-and-auditabilit
 | `WARNING` | The data is handled the same way every time | Security excluded or duplicate counted once; review runs |
 | `INFO`    | Data that was not needed                    | None                                                     |
 
-All rows are checked first, so every error is reported, not only the first one.
+The review runs in stages and stops after the first stage with an error. Within a stage every row is checked, so
+all errors of that stage are reported, not only the first one. For example, a composition with the wrong size stops
+the review before any security data row is checked.
 
-This follows the rulebook correction policy: missing data does not stop a review (section 7.1), wrong data is not
-used (section 7.2).
+Excluding a security with missing data is an assumption: the rulebook would use the latest available data (section
+7.1), but the files only hold the two review dates. See
+[Assumptions and design decisions](design-decisions.md#data). Only rows of universe members are checked, so data of
+other securities, even conflicting rows, cannot fail the review.
 
 ## Checks
 
 The cut-off date row gives the price. The review date row gives the shares and the free float.
 
-| Check                                                           | Code                                 | Severity |
-|-----------------------------------------------------------------|--------------------------------------|----------|
-| Universe has no members on the review date                      | `MISSING_DATE`                       | Error    |
-| Security data has no rows for the cut-off or the review date    | `MISSING_DATE`                       | Error    |
-| Composition does not have 20 different securities               | `COMPOSITION_SIZE`                   | Error    |
-| Fewer than 20 securities have a valid FFMCAP                    | `TOO_FEW_ELIGIBLE`                   | Error    |
-| Price is 0 or negative                                          | `INVALID_VALUE`                      | Error    |
-| Shares are missing, 0 or negative                               | `INVALID_VALUE`                      | Error    |
-| Free float is missing, 0, negative or above 1                   | `INVALID_VALUE`                      | Error    |
-| A value has more than 20 integer digits or 20 decimals          | `INVALID_VALUE`                      | Error    |
-| Two rows for the same security and date with different values   | `CONFLICTING_DUPLICATE`              | Error    |
-| No price on the cut-off date: security excluded                 | `MISSING_CUTOFF_PRICE`               | Warning  |
-| No row on the review date: security excluded                    | `MISSING_REVIEW_DATA`                | Warning  |
-| Two identical rows for the same security and date: counted once | `DUPLICATE_ROW`                      | Warning  |
-| A current component is not in the universe: it leaves           | `EXISTING_COMPONENT_NOT_IN_UNIVERSE` | Warning  |
-| Security data has securities outside the universe: ignored      | `IGNORED_SECURITIES`                 | Info     |
+| Check                                                             | Code                                 | Severity |
+|-------------------------------------------------------------------|--------------------------------------|----------|
+| Universe has no members on the review date                        | `MISSING_DATE`                       | Error    |
+| Security data has no rows for the cut-off or the review date      | `MISSING_DATE`                       | Error    |
+| Composition does not have 20 different securities                 | `COMPOSITION_SIZE`                   | Error    |
+| Fewer than 20 securities have a valid FFMCAP                      | `TOO_FEW_ELIGIBLE`                   | Error    |
+| Price is 0 or negative                                            | `INVALID_VALUE`                      | Error    |
+| Shares are missing, 0 or negative                                 | `INVALID_VALUE`                      | Error    |
+| Free float is missing, 0, negative or above 1                     | `INVALID_VALUE`                      | Error    |
+| A value has more than 20 integer digits or 20 decimals            | `INVALID_VALUE`                      | Error    |
+| Two different rows for one universe member and date               | `CONFLICTING_DUPLICATE`              | Error    |
+| No price on the cut-off date: security excluded                   | `MISSING_CUTOFF_PRICE`               | Warning  |
+| No row on the review date: security excluded                      | `MISSING_REVIEW_DATA`                | Warning  |
+| Two identical rows for one universe member and date: counted once | `DUPLICATE_ROW`                      | Warning  |
+| A current component is not in the universe: it leaves             | `EXISTING_COMPONENT_NOT_IN_UNIVERSE` | Warning  |
+| Security data has securities outside the universe: ignored        | `IGNORED_SECURITIES`                 | Info     |
 
 Notes:
 
 - One row can have several errors, for example shares of 0 and a free float of 1.5.
 - Duplicates are compared by value, so `0.5` and `0.50` are equal.
-- A security with an error or a warning gets the decision `NOT_ELIGIBLE` in the trace.
+- A security with an `INVALID_VALUE`, `CONFLICTING_DUPLICATE`, `MISSING_CUTOFF_PRICE`, `MISSING_REVIEW_DATA` or
+  `EXISTING_COMPONENT_NOT_IN_UNIVERSE` finding gets the decision `NOT_ELIGIBLE` in the trace. An identical duplicate
+  (`DUPLICATE_ROW`) is counted once and the security stays eligible.
 - The digit limit keeps the FFMCAP calculation in range. The assignment data has at most 10 integer digits and 4
   decimals.
 

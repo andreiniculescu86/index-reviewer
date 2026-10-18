@@ -299,13 +299,13 @@ class SmiReviewerTest {
             .filteredOn(constituent -> constituent.getCappingFactor().compareTo(BigDecimal.ONE) < 0)
             .extracting(Constituent::getSecurityId, Constituent::getWeight, Constituent::getCappingFactor)
             .containsExactlyInAnyOrder(
-                tuple(155, new BigDecimal("18.0000"), new BigDecimal("0.5654")),
-                tuple(205, new BigDecimal("18.0000"), new BigDecimal("0.6117")));
+                tuple(155, new BigDecimal("18.0000"), new BigDecimal("0.5653526015")),
+                tuple(205, new BigDecimal("18.0000"), new BigDecimal("0.6117362279")));
         assertThat(report.getConstituents()).filteredOn(constituent -> constituent.getSecurityId() == 63)
-            .extracting(Constituent::getWeight).containsExactly(new BigDecimal("14.2590"));
+            .extracting(Constituent::getWeight).containsExactly(new BigDecimal("14.2591"));
         assertThat(report.getConstituents().getLast()).satisfies(constituent -> {
             assertThat(constituent.getSecurityId()).isEqualTo(81);
-            assertThat(constituent.getWeight()).isEqualByComparingTo("0.8505");
+            assertThat(constituent.getWeight()).isEqualByComparingTo("0.8503");
         });
         assertThat(report.getConstituents().stream().map(Constituent::getWeight).reduce(BigDecimal.ZERO,
             BigDecimal::add)).isEqualByComparingTo("100");

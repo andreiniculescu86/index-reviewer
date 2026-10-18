@@ -8,7 +8,9 @@ import com.example.indexreviewer.model.trace.WeightTrace;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -30,12 +32,12 @@ class WeightCalculatorStepTest {
             .containsExactly(new BigDecimal("50"), new BigDecimal("37.5"), new BigDecimal("12.5"));
         assertThat(result.getTraces()).extracting(WeightTrace::getCappingFactor)
             .usingElementComparator(BigDecimal::compareTo)
-            .containsExactly(new BigDecimal("0.6667"), BigDecimal.ONE, BigDecimal.ONE);
+            .containsExactly(new BigDecimal("0.6666666667"), BigDecimal.ONE, BigDecimal.ONE);
         assertThat(result.getFindings()).isEmpty();
     }
 
     @Test
-    void calculateWeights_whenWeighted_expectFourDecimals() {
+    void calculateWeights_whenWeighted_expectFixedScales() {
         List<Candidate> components = List.of(component(1, "600"), component(2, "300"), component(3, "100"));
 
         WeightResult result = calculator.calculateWeights(components, HALF);
@@ -44,7 +46,7 @@ class WeightCalculatorStepTest {
             .containsOnly(4);
         assertThat(result.getConstituents()).extracting(Constituent::getCappingFactor)
             .extracting(BigDecimal::scale)
-            .containsOnly(4);
+            .containsOnly(10);
     }
 
     @Test
@@ -75,8 +77,8 @@ class WeightCalculatorStepTest {
                 new BigDecimal("19.4020"), new BigDecimal("17.5980"));
         assertThat(result.getConstituents()).extracting(Constituent::getCappingFactor)
             .usingElementComparator(BigDecimal::compareTo)
-            .containsExactly(new BigDecimal("0.8771"), new BigDecimal("0.9280"),
-                new BigDecimal("0.9962"), BigDecimal.ONE, BigDecimal.ONE);
+            .containsExactly(new BigDecimal("0.8771423641"), new BigDecimal("0.9279960927"),
+                new BigDecimal("0.9962087217"), BigDecimal.ONE, BigDecimal.ONE);
         assertThat(result.getFindings()).isEmpty();
     }
 
@@ -107,7 +109,7 @@ class WeightCalculatorStepTest {
             .containsOnly(new BigDecimal("25"));
         assertThat(result.getConstituents()).extracting(Constituent::getCappingFactor)
             .usingElementComparator(BigDecimal::compareTo)
-            .containsExactly(new BigDecimal("0.25"), new BigDecimal("0.3333"), new BigDecimal("0.5"),
+            .containsExactly(new BigDecimal("0.25"), new BigDecimal("0.3333333333"), new BigDecimal("0.5"),
                 BigDecimal.ONE);
         assertThat(result.getFindings()).isEmpty();
     }
@@ -120,27 +122,27 @@ class WeightCalculatorStepTest {
 
         assertThat(result.getConstituents()).extracting(Constituent::getWeight)
             .usingElementComparator(BigDecimal::compareTo)
-            .containsExactly(new BigDecimal("30"), new BigDecimal("30"), new BigDecimal("40"));
+            .containsOnly(new BigDecimal("30"));
         assertThat(result.getFindings()).singleElement().satisfies(finding -> {
             assertThat(finding.getCode()).isEqualTo(FindingCode.INVALID_WEIGHTS);
-            assertThat(finding.getMessage()).contains("The largest weight is 40.0000%");
+            assertThat(finding.getMessage()).contains("The weights add up to 90.0000%");
         });
     }
 
     @Test
-    void calculateWeights_whenRoundedDown_expectLastRaised() {
+    void calculateWeights_whenThirds_expectFirstRaised() {
         List<Candidate> components = List.of(component(1, "100"), component(2, "100"), component(3, "100"));
 
         WeightResult result = calculator.calculateWeights(components, HALF);
 
         assertThat(result.getConstituents()).extracting(Constituent::getWeight)
             .usingElementComparator(BigDecimal::compareTo)
-            .containsExactly(new BigDecimal("33.3333"), new BigDecimal("33.3333"), new BigDecimal("33.3334"));
+            .containsExactly(new BigDecimal("33.3334"), new BigDecimal("33.3333"), new BigDecimal("33.3333"));
         assertThat(result.getFindings()).isEmpty();
     }
 
     @Test
-    void calculateWeights_whenRoundedUp_expectLastLowered() {
+    void calculateWeights_whenSixths_expectFirstFourRaised() {
         List<Candidate> components = List.of(component(1, "100"), component(2, "100"), component(3, "100"),
             component(4, "100"), component(5, "100"), component(6, "100"));
 
@@ -149,7 +151,38 @@ class WeightCalculatorStepTest {
         assertThat(result.getConstituents()).extracting(Constituent::getWeight)
             .usingElementComparator(BigDecimal::compareTo)
             .containsExactly(new BigDecimal("16.6667"), new BigDecimal("16.6667"), new BigDecimal("16.6667"),
-                new BigDecimal("16.6667"), new BigDecimal("16.6667"), new BigDecimal("16.6665"));
+                new BigDecimal("16.6667"), new BigDecimal("16.6666"), new BigDecimal("16.6666"));
+        assertThat(result.getFindings()).isEmpty();
+    }
+
+    @Test
+    void calculateWeights_whenTinyComponent_expectNoNegative() {
+        List<Candidate> components = new ArrayList<>(IntStream.rangeClosed(1, 19)
+            .mapToObj(id -> component(id, "1"))
+            .toList());
+        components.add(component(20, "0.000000001"));
+
+        WeightResult result = calculator.calculateWeights(components, new BigDecimal("18"));
+
+        assertThat(result.getConstituents()).extracting(Constituent::getWeight)
+            .allSatisfy(weight -> assertThat(weight.signum()).isNotNegative());
+        assertThat(result.getConstituents().getLast().getWeight()).isEqualByComparingTo("0");
+        assertThat(result.getConstituents().stream().map(Constituent::getWeight)
+            .reduce(BigDecimal.ZERO, BigDecimal::add)).isEqualByComparingTo("100");
+        assertThat(result.getFindings()).isEmpty();
+    }
+
+    @Test
+    void calculateWeights_whenDominant_expectExactFactor() {
+        List<Candidate> components = new ArrayList<>(List.of(component(1, "10000000000")));
+        components.addAll(IntStream.rangeClosed(2, 20).mapToObj(id -> component(id, "1")).toList());
+
+        WeightResult result = calculator.calculateWeights(components, new BigDecimal("18"));
+
+        assertThat(result.getConstituents().getFirst()).satisfies(constituent -> {
+            assertThat(constituent.getWeight()).isEqualByComparingTo("18");
+            assertThat(constituent.getCappingFactor()).isEqualByComparingTo("4.170731707E-10");
+        });
         assertThat(result.getFindings()).isEmpty();
     }
 

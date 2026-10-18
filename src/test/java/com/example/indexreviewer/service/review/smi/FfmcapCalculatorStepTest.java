@@ -111,6 +111,21 @@ class FfmcapCalculatorStepTest {
     }
 
     @Test
+    void calculate_whenConflictOutsideUniverse_expectIgnored() {
+        ReviewCommand command = command(Set.of(10), List.of(
+            cutoffRow(10, "2080", "0.6766", "309375"),
+            reviewRow(10, "0.6766", "309375"),
+            cutoffRow(999, "10", "1", "1000"),
+            cutoffRow(999, "11", "1", "1000")));
+
+        FfmcapResult result = calculator.calculate(command);
+
+        assertThat(result.getCandidates()).extracting(Candidate::getSecurityId).containsExactly(10);
+        assertThat(result.getFindings()).extracting(Finding::getCode)
+            .containsExactly(FindingCode.IGNORED_SECURITIES);
+    }
+
+    @Test
     void calculate_whenUniverseOnOtherDate_expectNoResult() {
         ReviewCommand command = ReviewCommand.builder()
             .indexType(IndexType.SMI)

@@ -10,19 +10,23 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.IntStream;
 
 /**
  * Weights the index components by FFMCAP and limits every weight to the cap (rulebook section 5.12.4). The weight a
  * capped component loses goes to the components below the cap in proportion to their FFMCAP, in rounds until no
- * weight exceeds the cap. Weights are percentages of the index, 18 for 18%. Every division is rounded to 4 decimals,
- * and what the rounding leaves short of or above 100 goes to the last component, so that the weights add up to exactly
- * 100. The capping factor is 1 for a component that is not capped and below 1 for a capped one. The rounds, the
- * rounding and the capping factor formula are assumptions, described in docs/methodology.md.
+ * weight exceeds the cap. Weights are percentages of the index, 18 for 18%, with 4 decimals. They are rounded with the
+ * largest remainder method, so every weight stays within 0.0001 of its exact value and the weights add up to exactly
+ * 100. The capping factor is 1 for a component that is not capped and below 1 for a capped one, with 10 significant
+ * digits, so that FFMCAP x capping factor reproduces the weights. The rounds, the rounding and the capping factor
+ * formula are assumptions, described in docs/methodology.md.
  */
 @Slf4j
 @Component
@@ -30,7 +34,11 @@ public class WeightCalculatorStep {
 
     private static final BigDecimal FULL_INDEX_WEIGHT = BigDecimal.valueOf(100);
     private static final int WEIGHT_DECIMALS = 4;
-    private static final BigDecimal UNCAPPED_FACTOR = BigDecimal.ONE.setScale(WEIGHT_DECIMALS);
+    private static final BigDecimal WEIGHT_UNIT = BigDecimal.ONE.movePointLeft(WEIGHT_DECIMALS);
+    private static final int EXACT_DECIMALS = 20;
+    private static final int CAPPING_FACTOR_DECIMALS = 10;
+    private static final MathContext CAPPING_FACTOR_PRECISION = new MathContext(10, RoundingMode.HALF_UP);
+    private static final BigDecimal UNCAPPED_FACTOR = BigDecimal.ONE.setScale(CAPPING_FACTOR_DECIMALS);
 
     /**
      * Returns the components in the given order with their weighting factors, the trace records and the findings of
@@ -41,16 +49,17 @@ public class WeightCalculatorStep {
             selectedComponents.stream().map(Candidate::getSecurityId).toList());
 
         Set<Integer> cappedSecurityIds = findCappedComponents(selectedComponents, capPercentage);
-
-        var intermediateConstituents = weighComponents(selectedComponents, cappedSecurityIds, capPercentage);
-        var weightedConstituents = addLeftoverToLast(intermediateConstituents);
+        List<BigDecimal> exactWeights = calculateExactWeights(selectedComponents, cappedSecurityIds, capPercentage);
+        List<BigDecimal> roundedWeights = roundToFullIndex(exactWeights);
+        var weightedConstituents = buildConstituents(selectedComponents, cappedSecurityIds, capPercentage,
+            roundedWeights);
 
         log.info("Weighted {} components, {} capped at {}%", weightedConstituents.size(), cappedSecurityIds.size(),
             capPercentage);
         return WeightResult.builder()
             .constituents(weightedConstituents)
             .traces(getWeightTraces(weightedConstituents))
-            .findings(checkWeights(weightedConstituents, capPercentage))
+            .findings(checkWeights(selectedComponents, weightedConstituents, capPercentage))
             .build();
     }
 
@@ -80,7 +89,7 @@ public class WeightCalculatorStep {
                 .toList();
             BigDecimal uncappedTotalFfmcap = sumFfmcap(uncappedComponents);
             newlyCappedIds = uncappedComponents.stream()
-                .filter(component -> divideToWeightDecimals(remainingWeight.multiply(component.getFfmcap()),
+                .filter(component -> divideExactly(remainingWeight.multiply(component.getFfmcap()),
                     uncappedTotalFfmcap).compareTo(capPercentage) > 0)
                 .map(Candidate::getSecurityId)
                 .toList();
@@ -97,26 +106,61 @@ public class WeightCalculatorStep {
 
     /**
      * Gives every capped component exactly the cap and shares the remaining weight among the other components in
-     * proportion to their FFMCAP. The capping factor of a capped component is the factor that brings its FFMCAP to the
-     * cap when the other components keep their full FFMCAP.
+     * proportion to their FFMCAP, before rounding.
      */
-    private static List<Constituent> weighComponents(List<Candidate> selectedComponents,
-                                                     Set<Integer> cappedSecurityIds, BigDecimal capPercentage) {
+    private static List<BigDecimal> calculateExactWeights(List<Candidate> selectedComponents,
+                                                          Set<Integer> cappedSecurityIds, BigDecimal capPercentage) {
         BigDecimal remainingWeight = calculateRemainingWeight(capPercentage, cappedSecurityIds.size());
-        BigDecimal uncappedTotalFfmcap = sumFfmcap(selectedComponents.stream()
-            .filter(component -> !cappedSecurityIds.contains(component.getSecurityId()))
-            .toList());
-
+        BigDecimal uncappedTotalFfmcap = sumUncappedFfmcap(selectedComponents, cappedSecurityIds);
         return selectedComponents.stream()
-            .map(component -> {
-                boolean isComponentCapped = cappedSecurityIds.contains(component.getSecurityId());
+            .map(component -> cappedSecurityIds.contains(component.getSecurityId())
+                ? capPercentage
+                : divideExactly(remainingWeight.multiply(component.getFfmcap()), uncappedTotalFfmcap))
+            .toList();
+    }
+
+    /**
+     * Rounds the weights with the largest remainder method: every weight is rounded down to 4 decimals, then the 0.0001
+     * units still missing to 100 go one each to the weights with the largest rounding remainders, the higher rank first
+     * on equal remainders. When the weights cannot reach 100, because the cap is too low for the number of components,
+     * they are only rounded down and the check reports it.
+     */
+    private static List<BigDecimal> roundToFullIndex(List<BigDecimal> exactWeights) {
+        List<BigDecimal> roundedWeights = new ArrayList<>(exactWeights.stream()
+            .map(weight -> weight.setScale(WEIGHT_DECIMALS, RoundingMode.DOWN))
+            .toList());
+        int missingUnits = FULL_INDEX_WEIGHT.subtract(sumOf(roundedWeights)).divideToIntegralValue(WEIGHT_UNIT)
+            .intValue();
+        List<Integer> raisedIndexes = IntStream.range(0, exactWeights.size())
+            .filter(index -> exactWeights.get(index).compareTo(roundedWeights.get(index)) > 0)
+            .boxed()
+            .sorted(Comparator.comparing(
+                (Integer index) -> exactWeights.get(index).subtract(roundedWeights.get(index))).reversed())
+            .limit(Math.max(missingUnits, 0))
+            .toList();
+        raisedIndexes.forEach(index -> roundedWeights.set(index, roundedWeights.get(index).add(WEIGHT_UNIT)));
+        log.debug("Rounding gave 0.0001 to {} of {} weights", raisedIndexes.size(), exactWeights.size());
+        return List.copyOf(roundedWeights);
+    }
+
+    /**
+     * The capping factor of a capped component is the factor that brings its FFMCAP to the cap when the other
+     * components keep their full FFMCAP.
+     */
+    private static List<Constituent> buildConstituents(List<Candidate> selectedComponents,
+                                                       Set<Integer> cappedSecurityIds, BigDecimal capPercentage,
+                                                       List<BigDecimal> roundedWeights) {
+        BigDecimal remainingWeight = calculateRemainingWeight(capPercentage, cappedSecurityIds.size());
+        BigDecimal uncappedTotalFfmcap = sumUncappedFfmcap(selectedComponents, cappedSecurityIds);
+        return IntStream.range(0, selectedComponents.size())
+            .mapToObj(index -> {
+                Candidate component = selectedComponents.get(index);
                 return Constituent.builder()
                     .securityId(component.getSecurityId())
-                    .weight(isComponentCapped ? capPercentage.setScale(WEIGHT_DECIMALS, RoundingMode.DOWN)
-                        : divideToWeightDecimals(remainingWeight.multiply(component.getFfmcap()), uncappedTotalFfmcap))
-                    .cappingFactor(isComponentCapped
-                        ? divideToWeightDecimals(capPercentage.multiply(uncappedTotalFfmcap),
-                        remainingWeight.multiply(component.getFfmcap()))
+                    .weight(roundedWeights.get(index))
+                    .cappingFactor(cappedSecurityIds.contains(component.getSecurityId())
+                        ? roundCappingFactor(divideExactly(capPercentage.multiply(uncappedTotalFfmcap),
+                        remainingWeight.multiply(component.getFfmcap())))
                         : UNCAPPED_FACTOR)
                     .build();
             })
@@ -124,63 +168,95 @@ public class WeightCalculatorStep {
     }
 
     /**
-     * Adds what the rounding left short of 100, or subtracts what it left above, to the weight of the last component,
-     * which has the lowest rank. The difference is at most a few units of 0.0001.
+     * Sanity check of the final weights. Returns an {@code INVALID_WEIGHTS} error for each broken rule: a weight above
+     * the cap, a negative weight, weights that do not add up to 100, or capping factors that do not reproduce the
+     * weights within 0.0001. A weight above the cap or a total below 100 happens when the number of components x the
+     * cap is below 100, which the SMI configuration rejects at startup.
      */
-    private static List<Constituent> addLeftoverToLast(List<Constituent> roundedConstituents) {
-        BigDecimal leftoverWeight = FULL_INDEX_WEIGHT.subtract(sumWeights(roundedConstituents));
-        if (leftoverWeight.signum() == 0) {
-            return roundedConstituents;
+    private static List<Finding> checkWeights(List<Candidate> selectedComponents, List<Constituent> constituents,
+                                              BigDecimal capPercentage) {
+        List<Finding> findings = new ArrayList<>();
+        List<BigDecimal> weights = constituents.stream().map(Constituent::getWeight).toList();
+        BigDecimal largestWeight = weights.stream().reduce(BigDecimal::max).orElse(BigDecimal.ZERO);
+        if (largestWeight.compareTo(capPercentage) > 0) {
+            findings.add(invalidWeights("The largest weight is %s%%; none may exceed %s%%"
+                .formatted(largestWeight.toPlainString(), capPercentage.toPlainString())));
         }
-        var adjustedConstituents = new ArrayList<>(roundedConstituents);
-        var lastConstituent = adjustedConstituents.getLast();
-        adjustedConstituents.set(adjustedConstituents.size() - 1, Constituent.builder()
-            .securityId(lastConstituent.getSecurityId())
-            .weight(lastConstituent.getWeight().add(leftoverWeight))
-            .cappingFactor(lastConstituent.getCappingFactor())
-            .build());
-        log.debug("Added the rounding leftover of {} to security {}", leftoverWeight,
-            lastConstituent.getSecurityId());
-        return List.copyOf(adjustedConstituents);
+        BigDecimal smallestWeight = weights.stream().reduce(BigDecimal::min).orElse(BigDecimal.ZERO);
+        if (smallestWeight.signum() < 0) {
+            findings.add(invalidWeights("The smallest weight is %s%%; no weight may be negative"
+                .formatted(smallestWeight.toPlainString())));
+        }
+        BigDecimal totalWeight = sumOf(weights);
+        if (totalWeight.compareTo(FULL_INDEX_WEIGHT) != 0) {
+            findings.add(invalidWeights("The weights add up to %s%% instead of 100%%"
+                .formatted(totalWeight.toPlainString())));
+        }
+        List<Integer> unreproducedIds = findUnreproducedWeights(selectedComponents, constituents);
+        if (!unreproducedIds.isEmpty()) {
+            findings.add(invalidWeights("FFMCAP x capping factor does not reproduce the weights of securities %s"
+                .formatted(unreproducedIds)));
+        }
+        return findings;
     }
 
     /**
-     * Sanity check. Returns an {@code INVALID_WEIGHTS} error when a weight exceeds the cap, otherwise no finding. This
-     * happens when
-     * number of components x cap is below 100, which the SMI configuration rejects at startup.
+     * Returns the ids whose weight, calculated again from FFMCAP x capping factor, differs from the rounded weight by
+     * 0.0001 or more.
      */
-    private static List<Finding> checkWeights(List<Constituent> weightedConstituents, BigDecimal capPercentage) {
-        BigDecimal largestWeight = weightedConstituents.stream()
-            .map(Constituent::getWeight)
-            .reduce(BigDecimal.ZERO, BigDecimal::max);
-        if (largestWeight.compareTo(capPercentage) <= 0) {
+    private static List<Integer> findUnreproducedWeights(List<Candidate> selectedComponents,
+                                                         List<Constituent> constituents) {
+        List<BigDecimal> cappedFfmcaps = IntStream.range(0, selectedComponents.size())
+            .mapToObj(index -> selectedComponents.get(index).getFfmcap()
+                .multiply(constituents.get(index).getCappingFactor()))
+            .toList();
+        BigDecimal cappedTotalFfmcap = sumOf(cappedFfmcaps);
+        if (cappedTotalFfmcap.signum() == 0) {
             return List.of();
         }
-        return List.of(Finding.builder()
-            .code(FindingCode.INVALID_WEIGHTS)
-            .field("weight")
-            .message("The largest weight is %s%%; none may exceed %s%%".formatted(largestWeight.toPlainString(),
-                capPercentage.toPlainString()))
-            .build());
+        return IntStream.range(0, constituents.size())
+            .filter(index -> divideExactly(FULL_INDEX_WEIGHT.multiply(cappedFfmcaps.get(index)), cappedTotalFfmcap)
+                .subtract(constituents.get(index).getWeight()).abs().compareTo(WEIGHT_UNIT) >= 0)
+            .mapToObj(index -> constituents.get(index).getSecurityId())
+            .toList();
     }
 
-    private static BigDecimal divideToWeightDecimals(BigDecimal dividend, BigDecimal divisor) {
-        return dividend.divide(divisor, WEIGHT_DECIMALS, RoundingMode.HALF_UP);
+    private static Finding invalidWeights(String message) {
+        return Finding.builder()
+            .code(FindingCode.INVALID_WEIGHTS)
+            .field("weight")
+            .message(message)
+            .build();
+    }
+
+    // 10 significant digits keep even a very small capping factor exact enough; at least 10 decimals keep the scale
+    // the same for the usual factors
+    private static BigDecimal roundCappingFactor(BigDecimal exactFactor) {
+        BigDecimal roundedFactor = exactFactor.round(CAPPING_FACTOR_PRECISION);
+        return roundedFactor.scale() < CAPPING_FACTOR_DECIMALS
+            ? roundedFactor.setScale(CAPPING_FACTOR_DECIMALS, RoundingMode.UNNECESSARY)
+            : roundedFactor;
+    }
+
+    private static BigDecimal divideExactly(BigDecimal dividend, BigDecimal divisor) {
+        return dividend.divide(divisor, EXACT_DECIMALS, RoundingMode.HALF_UP);
     }
 
     private static BigDecimal calculateRemainingWeight(BigDecimal capPercentage, int cappedCount) {
         return FULL_INDEX_WEIGHT.subtract(capPercentage.multiply(BigDecimal.valueOf(cappedCount)));
     }
 
-    private static BigDecimal sumFfmcap(List<Candidate> componentsToSum) {
-        return componentsToSum.stream()
-            .map(Candidate::getFfmcap)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+    private static BigDecimal sumUncappedFfmcap(List<Candidate> selectedComponents, Set<Integer> cappedSecurityIds) {
+        return sumFfmcap(selectedComponents.stream()
+            .filter(component -> !cappedSecurityIds.contains(component.getSecurityId()))
+            .toList());
     }
 
-    private static BigDecimal sumWeights(List<Constituent> constituents) {
-        return constituents.stream()
-            .map(Constituent::getWeight)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+    private static BigDecimal sumFfmcap(List<Candidate> componentsToSum) {
+        return sumOf(componentsToSum.stream().map(Candidate::getFfmcap).toList());
+    }
+
+    private static BigDecimal sumOf(List<BigDecimal> values) {
+        return values.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }

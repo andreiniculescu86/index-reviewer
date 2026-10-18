@@ -6,7 +6,7 @@ portal or a published OpenAPI specification. The running application serves the 
 http://localhost:8096/ and as OpenAPI JSON at http://localhost:8096/v3/api-docs.
 
 All endpoints return JSON. Numbers such as weights and capping factors are JSON numbers; weights are percentages
-(`18` for 18%) with 4 decimals.
+(`18` for 18%) with 4 decimals; capping factors have 10 significant digits.
 
 | Endpoint                                                                  | Purpose                              |
 |---------------------------------------------------------------------------|--------------------------------------|
@@ -180,7 +180,8 @@ only this security and its findings, for example to see why it left the index.
 
 ## ErrorResponse
 
-Returned when a request is rejected. A rejected request is not a review and is not stored.
+Returned when a request is rejected (`400`, `413`, `422` for an index without rules), which is not stored, and on an
+unexpected error (`500`), where the review is stored with status `ERROR`.
 
 | Field      | Type                    | Meaning                            |
 |------------|-------------------------|------------------------------------|

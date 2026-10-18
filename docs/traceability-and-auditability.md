@@ -152,12 +152,12 @@ Which data check gives which code is in [Data validation](data-validation.md#che
 | `COMPOSITION_SIZE`                   | ERROR    | The current composition does not have 20 different securities                  |
 | `TOO_FEW_ELIGIBLE`                   | ERROR    | Fewer than 20 securities have a valid FFMCAP                                   |
 | `INVALID_VALUE`                      | ERROR    | Price, shares or free float missing, zero, negative, above 1 or too long       |
-| `CONFLICTING_DUPLICATE`              | ERROR    | Two rows for the same security and date have different values                  |
+| `CONFLICTING_DUPLICATE`              | ERROR    | Two rows for one universe member and date have different values                |
 | `SELECTION_SIZE`                     | ERROR    | The selection did not fill exactly 20 seats                                    |
-| `INVALID_WEIGHTS`                    | ERROR    | A final weight is above the cap                                                |
+| `INVALID_WEIGHTS`                    | ERROR    | Final weights break a rule: above cap, negative, sum not 100, factors mismatch |
 | `MISSING_CUTOFF_PRICE`               | WARNING  | No price on the cut-off date; the security is not eligible                     |
 | `MISSING_REVIEW_DATA`                | WARNING  | No row on the review date; the security is not eligible                        |
-| `DUPLICATE_ROW`                      | WARNING  | Two identical rows for the same security and date; counted once                |
+| `DUPLICATE_ROW`                      | WARNING  | Two identical rows for one universe member and date; counted once              |
 | `EXISTING_COMPONENT_NOT_IN_UNIVERSE` | WARNING  | A current component is not in the universe on the review date; it leaves       |
 | `SELECTION_TIE`                      | WARNING  | Equal FFMCAPs were split into selected and not selected; the tie order decided |
 | `IGNORED_SECURITIES`                 | INFO     | The security data has securities outside the universe; they are not used       |

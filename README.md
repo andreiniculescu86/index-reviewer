@@ -27,7 +27,7 @@ The assignment, its requirements and the CSV files are in
 
 ## Build and run
 
-Build the application and run the tests and Checkstyle.
+Build the application and run all [tests](#tests), the coverage report and Checkstyle.
 
 ```bash
 ./mvnw verify
@@ -41,17 +41,48 @@ java -jar target/index-reviewer-0.1.0-SNAPSHOT.jar
 
 Swagger UI is also available: http://localhost:8096/. It documents every endpoint and can upload the files.
 
+## Tests
+
+`./mvnw verify` runs everything below and fails the build on any failed test or Checkstyle violation.
+
+| Check             | What it covers                                  | Report                          |
+|-------------------|-------------------------------------------------|---------------------------------|
+| Unit tests        | 208 tests in 18 classes, one part at a time     | `target/surefire-reports`       |
+| End-to-end tests  | 24 scenarios, each a real HTTP call to the app  | `target/failsafe-reports`       |
+| Coverage (JaCoCo) | All tests: 93% of instructions, 80% of branches | `target/site/jacoco/index.html` |
+| Checkstyle        | Main and test code, `checkstyle_rules.xml`      | `target/checkstyle-result.xml`  |
+
+**Unit tests** check each part on its own, with small inputs whose expected values are easy to verify by hand:
+
+- the review steps: FFMCAP from the right dates, ranking and buffer selection with ties, capping in rounds and the
+  rounding of weights;
+- the data checks: the errors and warnings in [Data validation](docs/data-validation.md);
+- the API: request validation, status codes, error responses and mapping;
+- the CSV reader (separators, BOM, line endings, broken files) and the review store.
+
+**End-to-end tests** start the application, upload one set of CSV files from
+[src/test/resources/e2e](src/test/resources/e2e) and check the HTTP response and the stored report, audit record and
+trace. Each scenario is a case that can happen with real input:
+
+| Area                       | Scenarios             | Examples                                            |
+|----------------------------|-----------------------|-----------------------------------------------------|
+| Assignment data            | 1                     | Q3 2026: joiner 177, leaver 103, 155 and 205 at 18% |
+| Selection and buffer       | 2, 16 to 21           | All 20 members leave, buffer seats, ties            |
+| Weighting and capping      | 3, 14, 22             | Capping over several rounds, no capping             |
+| Data changes between dates | 4, 11, 12, 13, 15, 23 | Delisting, IPO, member without data                 |
+| Data errors (`422`)        | 5, 6, 7, 9, 10, 24    | Free float in percent, conflicting rows             |
+| File format                | 8                     | Comma separator, BOM, Windows line endings          |
+
 ## Run a review
 
-Either use the Swagger UI or the command line. RECOMMENDATION: use Swagger UI at http://localhost:8096/
+Use the Swagger UI at http://localhost:8096/ (easiest) or the command line.
 Send the 3 files as multipart form data. The input files of the assignment are in
 [docs/assignment-requirements-SIX](docs/assignment-requirements-SIX).
 
-Set `DATA_DIR` to the folder with your 3 CSV files, absolute or relative to where you run curl. For the assignment
-files, from the project root: `DATA_DIR="docs/assignment-requirements-SIX"`.
+From the project root, this runs the review on the assignment files:
 
 ```bash
-DATA_DIR="/path/to/folder"
+DATA_DIR="docs/assignment-requirements-SIX"
 ```
 
 ```bash
@@ -62,7 +93,44 @@ curl -F "universe=@$DATA_DIR/spi_universe.csv" \
 ```
 
 Each `-F name=@file` uploads one file as the form part `name`. The file names can differ; the part names
-`universe`, `securityData` and `composition` must stay.
+`universe`, `securityData` and `composition` must stay. For your own files, set `DATA_DIR` to their folder, absolute
+or relative to where you run curl.
+
+### Expected result
+
+For the assignment files the review returns `201` with this report (shortened):
+
+```json
+{
+  "reviewId": "50114c22-846f-454a-a347-3f8af29ba35c",
+  "status": "SUCCESS_WITH_WARNINGS",
+  "constituents": [
+    { "securityId": 155, "weight": 18.0000, "cappingFactor": 0.5653526015 },
+    { "securityId": 205, "weight": 18.0000, "cappingFactor": 0.6117362279 },
+    { "securityId": 63, "weight": 14.2591, "cappingFactor": 1.0000000000 },
+    ...
+    { "securityId": 81, "weight": 0.8503, "cappingFactor": 1.0000000000 }
+  ],
+  "joiners": [177],
+  "leavers": [103],
+  "findings": [
+    {
+      "code": "MISSING_REVIEW_DATA",
+      "severity": "WARNING",
+      "securityId": 166,
+      "field": null,
+      "message": "Security 166 excluded: no shares and free float on the review date"
+    }
+  ]
+}
+```
+
+- 20 constituents in rank order; 155 and 205 would weigh 25.42% and 23.49%, so both are capped at 18%.
+- Security 177 joins and security 103 leaves.
+- `SUCCESS_WITH_WARNINGS` is expected: security 166 is in the universe but has no review-date row in
+  `sec_data.csv`, so it is excluded with a warning. The result itself is complete.
+
+### Index, dates and separator
 
 The optional `configRequest` part sets the index, the dates and the CSV separator. Without it, the review uses SMI,
 cut-off date 2026-09-10, review date 2026-09-21 and `;`. Currently, only SMI is supported.
@@ -74,6 +142,8 @@ curl -F 'configRequest={"indexType":"SMI","cutoffDate":"2026-09-10","reviewDate"
   -F "composition=@$DATA_DIR/composition.csv" \
   http://localhost:8096/v1/reviews
 ```
+
+### Response fields
 
 The response is the review report:
 

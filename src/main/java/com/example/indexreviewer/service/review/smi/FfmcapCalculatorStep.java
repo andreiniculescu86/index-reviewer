@@ -63,15 +63,19 @@ public class FfmcapCalculatorStep {
 
     /**
      * Validates the rows of every universe member and existing component, adds the findings and returns the values to
-     * use, ordered by security id. A universe member is eligible only when its rows have no findings and it has no
-     * conflicting duplicate rows. An existing component that is not in the universe has no values and is not
-     * eligible, so it leaves the index.
+     * use, ordered by security id. Only rows of universe members are checked, so data of other securities, even
+     * conflicting duplicates, cannot fail the review. A universe member is eligible only when its rows have no findings
+     * and it has no conflicting duplicate rows. An existing component that is not in the universe has no values and is
+     * not eligible, so it leaves the index.
      */
     private List<SecurityInput> collectSecurityData(ReviewCommand command, Set<Integer> universeIds,
                                                     Set<Integer> existingComponents, List<Finding> findings) {
         List<Security> allSecurities = command.getSecurities();
-        var cutoffSecurities = extractSecurities(allSecurities, command.getCutoffDate(), findings);
-        var reviewSecurities = extractSecurities(allSecurities, command.getReviewDate(), findings);
+        List<Security> universeSecurities = allSecurities.stream()
+            .filter(row -> universeIds.contains(row.getSecurityId()))
+            .toList();
+        var cutoffSecurities = extractSecurities(universeSecurities, command.getCutoffDate(), findings);
+        var reviewSecurities = extractSecurities(universeSecurities, command.getReviewDate(), findings);
         findings.addAll(findIgnoredSecurities(allSecurities, universeIds));
         Set<Integer> conflicting = findConflictingSecurityIds(findings);
 
