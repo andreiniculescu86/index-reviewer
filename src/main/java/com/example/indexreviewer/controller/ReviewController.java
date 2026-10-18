@@ -7,6 +7,7 @@ import com.example.indexreviewer.dto.csv.Composition;
 import com.example.indexreviewer.dto.csv.SecurityData;
 import com.example.indexreviewer.dto.csv.Universe;
 import com.example.indexreviewer.dto.request.ConfigRequest;
+import com.example.indexreviewer.dto.response.review.ReviewAuditResponse;
 import com.example.indexreviewer.dto.response.review.ReviewResponse;
 import com.example.indexreviewer.exception.InvalidCsvFileException;
 import com.example.indexreviewer.model.IndexType;
@@ -92,9 +93,10 @@ public class ReviewController {
 
     @GetMapping(path = "/reviews", produces = APPLICATION_JSON_VALUE)
     @ReviewSwaggerDocs.ListReviews
-    public void listReviews(@RequestParam(required = false) IndexType indexType,
-                            @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate cutoffDate,
-                            @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate reviewDate) {
+    public List<ReviewAuditResponse> listReviews(@RequestParam(required = false) IndexType indexType,
+        @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate cutoffDate,
+        @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate reviewDate) {
+        return responseMapper.toAuditResponses(reviewService.listAudits(indexType, cutoffDate, reviewDate));
     }
 
     @GetMapping(path = "/reviews/{reviewId}", produces = APPLICATION_JSON_VALUE)

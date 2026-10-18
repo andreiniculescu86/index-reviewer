@@ -12,12 +12,16 @@ import com.example.indexreviewer.model.trace.ReviewTrace;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
+import java.util.List;
+
 @Mapper(config = MapStructConfig.class)
 public interface ReviewResponseMapper {
 
     ReviewResponse toReviewResponse(ReviewReport report);
 
     ReviewAuditResponse toAuditResponse(ReviewAudit audit);
+
+    List<ReviewAuditResponse> toAuditResponses(List<ReviewAudit> audits);
 
     /**
      * Maps the identity and status of the audit record with the given trace, so that the trace of one security can be

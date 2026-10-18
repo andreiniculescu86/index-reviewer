@@ -8,7 +8,7 @@ import lombok.Value;
 import java.math.BigDecimal;
 
 /**
- * Trace record of the weighting step for one index component. The weight is a fraction of the index, 0.18 for 18%.
+ * Trace record of the weighting step for one index component. The weight is a percentage of the index, 18 for 18%.
  */
 @Value
 @Builder

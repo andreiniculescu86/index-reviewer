@@ -52,9 +52,4 @@ public class MonitorController {
         }
         return responseMapper.toTraceResponse(audit, securityTrace);
     }
-
-//    @GetMapping(path = "/reviews/{reviewId}/inputs/{role}", produces = TEXT_CSV)
-//    @MonitorSwaggerDocs.GetReviewInput
-//    public void getReviewInput(@PathVariable String reviewId, @PathVariable String role) {
-//    }
 }

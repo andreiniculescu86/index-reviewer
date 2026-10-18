@@ -127,7 +127,8 @@ The assignment and the rulebook define:
 - The weight cut from a capped component goes to the components below the cap, in proportion to their weights (the
   example in the assignment).
 
-Weights are stored as fractions of the index, `0.18` for 18%.
+Weights are percentages of the index, `18` for 18%, as in the assignment and the rulebook. They have 4 decimals and
+add up to exactly 100 in the report, the trace and the API.
 
 ### Assumptions on the capping formula
 
@@ -142,23 +143,30 @@ rulebook that is not part of the assignment. The assignment leaves the details o
    recomputes the weights from FFMCAP:
     - a capped component gets exactly the cap;
     - every other component gets `remaining weight x FFMCAP / FFMCAP of all uncapped components`, where
-      `remaining weight = 1 - cap x number of capped components`.
+      `remaining weight = 100% - cap x number of capped components`.
 
    This gives the same result as handing out the cut weight in proportion, without rounding differences adding up over
    the rounds.
 3. **Capping factor.** An uncapped component has a factor of 1, so its full FFMCAP counts. A capped component gets
    `cap x FFMCAP of all uncapped components / (remaining weight x FFMCAP)`, the factor that brings its FFMCAP down to
-   the cap. `FFMCAP x capping factor`, divided by its total, gives the final weights. Multiplying every factor by the
-   same number gives the same weights, so the scale is a convention; this one makes 1 mean "not capped".
-4. **Precision.** Divisions use `BigDecimal` with 16 significant digits (`MathContext.DECIMAL64`). Capped weights are
-   set to exactly the cap. The weights are not rounded in the report. After the rounds, the review checks that the
-   weights add up to 1 within 10^-12 and that none exceeds the cap; otherwise it adds an `INVALID_WEIGHTS` error.
-5. **Cap too low.** When `number of components x cap` is below 100%, no weights can meet the cap. The application does
-   not start with such a configuration, and the weighting adds a `CAP_NOT_FEASIBLE` error if it still happens.
+   the cap. `FFMCAP x capping factor`, divided by its total, gives the weights. Multiplying every factor by the same
+   number gives the same weights, so the scale is a convention; this one makes 1 mean "not capped".
+4. **4 decimals.** Every division, for the weights and the capping factors, is rounded half up to 4 decimals.
+   Capped weights are set to exactly the cap. Each weight comes from a single division of exact values, because every
+   round starts from FFMCAP, so the rounding of one round does not carry into the next. Because the capping factors
+   have 4 decimals, `FFMCAP x capping factor` reproduces the weights only approximately.
+5. **Rounding leftover to the last component.** The rounded weights can add up to a few units of 0.0001 more or less
+   than 100. The difference is added to the weight of the last component, the one with the lowest rank, so that the
+   weights add up to exactly 100. With 20 components, the difference is at most 0.0010. The weights are the same
+   everywhere: in the weighting result, the trace, the report and the API. The review then checks that no weight
+   exceeds the cap; otherwise it adds an `INVALID_WEIGHTS` error.
+6. **Cap too low.** When `number of components x cap` is below 100%, no weights can meet the cap. The application does
+   not start with such a configuration. If it still happens, the last component gets the missing weight and exceeds
+   the cap, and the check of assumption 5 adds an `INVALID_WEIGHTS` error.
 
 ### Example with two rounds
 
-Five components, a cap of 21%. Weights are rounded to 4 decimals here, so a total can differ by 0.0001.
+Five components, a cap of 21%. Weights are rounded to 4 decimals, so a total in the rounds can differ by 0.0001.
 
 | Component | FFMCAP    | Weight before capping           |
 |-----------|-----------|---------------------------------|
@@ -196,23 +204,29 @@ With the formula of assumption 2: remaining weight = 100% - 2 x 21% = 58%, FFMCA
 With the formula: remaining weight = 100% - 3 x 21% = 37%, FFMCAP of D and E = 13,797.70, so D gets
 37% x 7,235.20 / 13,797.70 = 19.4020%. No weight exceeds 21%, so the rounds stop.
 
+**Rounding leftover.** Rounded to 4 decimals, D and E are 19.4020% and 17.5980%. With A, B and C at 21.0000%, the
+total is exactly 100.0000%, so there is no leftover for E, the last component.
+
 **Result.**
 
 | Component | Final weight | Capping factor | FFMCAP x capping factor |
 |-----------|--------------|----------------|-------------------------|
-| A         | 21%          | 0.877142       | 7,831.13                |
-| B         | 21%          | 0.927996       | 7,831.13                |
-| C         | 21%          | 0.996209       | 7,831.13                |
+| A         | 21.0000%     | 0.8771         | 7,830.75                |
+| B         | 21.0000%     | 0.9280         | 7,831.16                |
+| C         | 21.0000%     | 0.9962         | 7,831.06                |
 | D         | 19.4020%     | 1              | 7,235.20                |
 | E         | 17.5980%     | 1              | 6,562.50                |
-| Total     | 100%         |                | 37,291.08               |
+| Total     | 100.0000%    |                | 37,290.67               |
 
-Each final weight is `FFMCAP x capping factor / 37,291.08`. For A the factor is
-21% x 13,797.70 / (37% x 8,928.00) = 0.877142. `WeightCalculatorStepTest` checks this example.
+For A the factor is 21% x 13,797.70 / (37% x 8,928.00) = 0.8771. With 4-decimal factors,
+`FFMCAP x capping factor / 37,290.67` gives the weights only approximately, for example 20.9992% for A.
+`WeightCalculatorStepTest` checks this example.
 
 **Result for Q3 2026.** With the assignment data, securities 155 and 205 weigh 25.42% and 23.49% before capping. One
-round caps both at 18%, with capping factors 0.565353 and 0.611736, and the largest uncapped weight is security 63 with
-14.26%. `SmiReviewTest` runs the review on these files and checks this result.
+round caps both at 18.0000%, with capping factors 0.5654 and 0.6117, and the largest uncapped weight is security 63
+with 14.2590%. The rounded weights add up to 99.9998%, so the last component, security 81 on rank 22, gets the leftover
+of 0.0002% and ends at 0.8505%. The 20 weights then add up to exactly 100.0000%. `SmiReviewTest` runs the review on
+these files and checks this result.
 
 ## Joiners and leavers
 

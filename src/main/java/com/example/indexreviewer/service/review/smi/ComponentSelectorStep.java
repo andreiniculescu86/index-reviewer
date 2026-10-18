@@ -35,6 +35,10 @@ public class ComponentSelectorStep {
      */
     public SelectionResult selectTopCandidates(List<Candidate> candidates, List<Integer> composition,
                                                IndexRules rules) {
+        log.info("Selecting {} components from {} candidates, direct selection up to rank {}, buffer up to rank {}, "
+                + "current composition: {}", rules.getNumberOfComponents(), candidates.size(),
+            rules.getDirectSelectionRank(), rules.getBufferRank(), composition);
+
         List<Candidate> rankedCandidates = candidates.stream().sorted(rankCandidates(composition)).toList();
         List<SelectionDecision> decisions = decideIfSelected(rankedCandidates, rules);
 
@@ -55,6 +59,10 @@ public class ComponentSelectorStep {
         var findings = new ArrayList<>(buildFindings(rankedCandidates, decisions));
         findings.addAll(checkSelectionSize(selected.size(), rules));
 
+        log.info("Selected {} components in rank order: {}, decisions: {}, findings: {}", selected.size(),
+            selected.stream().map(Candidate::getSecurityId).toList(),
+            decisions.stream().collect(Collectors.groupingBy(Function.identity(), TreeMap::new,
+                Collectors.counting())), findings.size());
         return SelectionResult.builder()
             .components(selected)
             .traces(traces)

@@ -40,7 +40,6 @@ import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.SMI_RULE
 import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.assignmentCommand;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
-import static org.assertj.core.api.Assertions.within;
 
 class SmiReviewTest {
 
@@ -191,7 +190,7 @@ class SmiReviewTest {
             .usingElementComparator(BigDecimal::compareTo)
             .containsOnly(BigDecimal.ONE);
         assertThat(selected.stream().map(SecurityTrace::getWeight).reduce(BigDecimal.ZERO, BigDecimal::add))
-            .isCloseTo(BigDecimal.ONE, within(new BigDecimal("1E-12")));
+            .isEqualByComparingTo("100");
     }
 
     @Test
@@ -206,10 +205,10 @@ class SmiReviewTest {
         assertThat(report.getStatus()).isEqualTo(ReviewStatus.SUCCESS);
         assertThat(report.getConstituents().getFirst()).satisfies(constituent -> {
             assertThat(constituent.getSecurityId()).isEqualTo(25);
-            assertThat(constituent.getWeight()).isEqualByComparingTo("0.18");
+            assertThat(constituent.getWeight()).isEqualByComparingTo("18");
         });
         assertThat(report.getConstituents().stream().map(Constituent::getWeight).reduce(BigDecimal.ZERO,
-            BigDecimal::add)).isCloseTo(BigDecimal.ONE, within(new BigDecimal("1E-12")));
+            BigDecimal::add)).isEqualByComparingTo("100");
         assertThat(report.getConstituents().subList(1, 20)).extracting(Constituent::getCappingFactor)
             .usingElementComparator(BigDecimal::compareTo)
             .containsOnly(BigDecimal.ONE);
@@ -217,7 +216,7 @@ class SmiReviewTest {
         assertThat(storedTrace(report.getReviewId()).forSecurity(25).getSecurities()).singleElement()
             .satisfies(security -> {
                 assertThat(security.getRank()).isEqualTo(1);
-                assertThat(security.getWeight()).isEqualByComparingTo("0.18");
+                assertThat(security.getWeight()).isEqualByComparingTo("18");
                 assertThat(security.getCappingFactor()).isLessThan(BigDecimal.ONE);
             });
         assertThat(storedTrace(report.getReviewId()).getFindings()).isEmpty();
@@ -300,12 +299,16 @@ class SmiReviewTest {
             .filteredOn(constituent -> constituent.getCappingFactor().compareTo(BigDecimal.ONE) < 0)
             .extracting(Constituent::getSecurityId, Constituent::getWeight, Constituent::getCappingFactor)
             .containsExactlyInAnyOrder(
-                tuple(155, new BigDecimal("0.18"), new BigDecimal("0.5653526014830201")),
-                tuple(205, new BigDecimal("0.18"), new BigDecimal("0.6117362279404126")));
+                tuple(155, new BigDecimal("18.0000"), new BigDecimal("0.5654")),
+                tuple(205, new BigDecimal("18.0000"), new BigDecimal("0.6117")));
         assertThat(report.getConstituents()).filteredOn(constituent -> constituent.getSecurityId() == 63)
-            .extracting(Constituent::getWeight).containsExactly(new BigDecimal("0.1425904324798463"));
+            .extracting(Constituent::getWeight).containsExactly(new BigDecimal("14.2590"));
+        assertThat(report.getConstituents().getLast()).satisfies(constituent -> {
+            assertThat(constituent.getSecurityId()).isEqualTo(81);
+            assertThat(constituent.getWeight()).isEqualByComparingTo("0.8505");
+        });
         assertThat(report.getConstituents().stream().map(Constituent::getWeight).reduce(BigDecimal.ZERO,
-            BigDecimal::add)).isCloseTo(BigDecimal.ONE, within(new BigDecimal("1E-12")));
+            BigDecimal::add)).isEqualByComparingTo("100");
     }
 
     private SmiReviewer reviewer(FfmcapCalculatorStep ffmcapCalculatorStep, WeightCalculatorStep weightCalculatorStep) {

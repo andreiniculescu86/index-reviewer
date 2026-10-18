@@ -85,7 +85,7 @@ There is one entry for every security in the universe and for every existing ind
 | `rank`              | Rank by FFMCAP, 1 for the largest; ties follow the [tie order](methodology.md#ranking) |
 | `decision`          | [Selection decision](#selection-decisions)                                             |
 | `cappingFactor`     | 1 if not capped, below 1 if capped; [formula](methodology.md#weighting-and-capping)    |
-| `weight`            | Final weight as a fraction of the index, `0.18` for 18%                                |
+| `weight`            | Final weight as a percentage of the index with 4 decimals, `18.0000` for 18%           |
 
 A value is empty (`null`) when the step that fills it did not run.
 
@@ -188,8 +188,7 @@ caused it (if any) and a readable message.
 | `INVALID_VALUE`                      | ERROR    | Price, shares or free float missing, zero, negative or too large  |
 | `CONFLICTING_DUPLICATE`              | ERROR    | Two rows for the same security and date have different values     |
 | `SELECTION_SIZE`                     | ERROR    | The selection did not fill the index with exactly 20 components   |
-| `CAP_NOT_FEASIBLE`                   | ERROR    | The cap is too low for the weights to add up to 100%              |
-| `INVALID_WEIGHTS`                    | ERROR    | The weights do not add up to 100%, or one exceeds the cap         |
+| `INVALID_WEIGHTS`                    | ERROR    | A weight exceeds the cap                                          |
 | `MISSING_CUTOFF_PRICE`               | WARNING  | No price on the cut-off date; the security is not eligible        |
 | `MISSING_REVIEW_DATA`                | WARNING  | No row on the review date; the security is not eligible           |
 | `DUPLICATE_ROW`                      | WARNING  | Two identical rows for the same security and date; counted once   |
@@ -254,13 +253,15 @@ for security 166), so its status is `FAILED`.
   separately, so a failure between them can leave a step's records without its findings.
 - The capping rounds are not stored; the log shows them at DEBUG level. The final traces are enough to check the
   weights: a capped security has exactly the cap and a capping factor below 1, an uncapped security has a capping factor
-  of 1 and a weight proportional to its FFMCAP, no weight is above the cap, and all weights add up to 100%. Only one set
-  of weights meets these rules. See [Weighting and capping](methodology.md#weighting-and-capping).
+  of 1 and a weight proportional to its FFMCAP up to the rounding to 4 decimals and, for the last security, the
+  rounding leftover, no weight is above the cap, and all weights add up to exactly 100%. See
+  [Weighting and capping](methodology.md#weighting-and-capping).
 
 ## API
 
 | Endpoint                                             | Returns                                              |
 |------------------------------------------------------|------------------------------------------------------|
+| `GET /v1/reviews`                                    | Audit parts of stored reviews, newest first          |
 | `GET /v1/reviews/{reviewId}/audit`                   | Identity, status and the [audit part](#audit-part)   |
 | `GET /v1/reviews/{reviewId}/trace`                   | Identity, status and the [trace part](#trace-part)   |
 | `GET /v1/reviews/{reviewId}/securities/{securityId}` | Identity, status and the trace part for one security |

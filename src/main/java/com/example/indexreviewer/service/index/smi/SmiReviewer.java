@@ -71,9 +71,13 @@ public class SmiReviewer implements IndexReviewer {
     public ReviewReport review(ReviewCommand command) {
         var reviewId = UUID.randomUUID();
         var executedAt = Instant.now();
+
+        log.info("Starting review {} of {} for {} on {}", reviewId, command.getIndexType(), command.getCutoffDate(),
+            command.getReviewDate());
         ReviewReport report;
         try {
             report = runSteps(reviewId, command, configuration.toRules());
+            log.info("Review {} finalised with status {}", reviewId, report.getStatus());
         } catch (RuntimeException | Error exception) {
             log.warn("Review {} of {} stopped on an unexpected error; {}", reviewId, command.getIndexType(),
                 exception.getMessage());

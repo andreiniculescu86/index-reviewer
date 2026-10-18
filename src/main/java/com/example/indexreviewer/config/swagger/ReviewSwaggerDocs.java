@@ -1,10 +1,12 @@
 package com.example.indexreviewer.config.swagger;
 
 import com.example.indexreviewer.dto.response.error.ErrorResponse;
+import com.example.indexreviewer.dto.response.review.ReviewAuditResponse;
 import com.example.indexreviewer.dto.response.review.ReviewResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -52,13 +54,21 @@ public interface ReviewSwaggerDocs {
     @Target({ElementType.METHOD})
     @Retention(RetentionPolicy.RUNTIME)
     @Operation(summary = "List review executions",
-        description = "Returns a summary of stored review executions. Both filters are optional.")
-    @Parameter(name = "indexId", in = ParameterIn.QUERY, description = "Only executions of this index.", example = "SMI")
+        description = "Returns the audit records of the stored review executions, newest first. All filters are "
+            + "optional and combined.")
+    @Parameter(name = "indexType", in = ParameterIn.QUERY, description = "Only executions of this index.",
+        example = "SMI")
     @Parameter(name = "cutoffDate", in = ParameterIn.QUERY, description = "Only executions with this cut-off date.",
         example = "2026-09-10")
     @Parameter(name = "reviewDate", in = ParameterIn.QUERY, description = "Only executions with this review date.",
         example = "2026-09-21")
-    @ApiResponse(responseCode = "200", description = "Matching review executions, possibly empty.")
+    @ApiResponse(responseCode = "200", description = "Matching review executions, possibly empty.",
+        content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+            array = @ArraySchema(schema = @Schema(implementation = ReviewAuditResponse.class))))
+    @ApiResponse(responseCode = "400", description = "A filter value is invalid: unknown index or a date that is not "
+        + "ISO (yyyy-MM-dd).",
+        content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+            schema = @Schema(implementation = ErrorResponse.class)))
     @interface ListReviews {
     }
 

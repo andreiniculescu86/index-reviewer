@@ -15,7 +15,6 @@ public enum FindingCode {
     INVALID_VALUE(Severity.ERROR),
     CONFLICTING_DUPLICATE(Severity.ERROR),
     SELECTION_SIZE(Severity.ERROR),
-    CAP_NOT_FEASIBLE(Severity.ERROR),
     INVALID_WEIGHTS(Severity.ERROR),
     MISSING_CUTOFF_PRICE(Severity.WARNING),
     MISSING_REVIEW_DATA(Severity.WARNING),

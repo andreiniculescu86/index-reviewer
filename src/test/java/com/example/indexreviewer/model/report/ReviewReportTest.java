@@ -28,7 +28,7 @@ class ReviewReportTest {
         assertThat(report.getReviewId()).isEqualTo(REVIEW_ID);
         assertThat(report.getStatus()).isEqualTo(ReviewStatus.SUCCESS_WITH_WARNINGS);
         assertThat(report.getConstituents()).extracting(Constituent::getSecurityId).containsExactly(155, 177);
-        assertThat(report.getConstituents().getFirst().getWeight()).isEqualByComparingTo("0.18");
+        assertThat(report.getConstituents().getFirst().getWeight()).isEqualByComparingTo("18");
         assertThat(report.getConstituents().getFirst().getCappingFactor()).isEqualByComparingTo("0.565353");
         assertThat(report.getJoiners()).containsExactly(177);
         assertThat(report.getLeavers()).containsExactly(103);
@@ -93,7 +93,7 @@ class ReviewReportTest {
     private static Constituent constituent(int securityId) {
         return Constituent.builder()
             .securityId(securityId)
-            .weight(new BigDecimal("0.1"))
+            .weight(new BigDecimal("10"))
             .cappingFactor(BigDecimal.ONE)
             .build();
     }

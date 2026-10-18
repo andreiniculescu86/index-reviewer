@@ -75,7 +75,7 @@ public final class ReviewExecutionFixtures {
         .rank(1)
         .decision(SelectionDecision.SELECTED_DIRECT)
         .cappingFactor(new BigDecimal("0.565353"))
-        .weight(new BigDecimal("0.18"))
+        .weight(new BigDecimal("18"))
         .build();
     public static final SecurityTrace JOINER = SecurityTrace.builder()
         .securityId(177)
@@ -83,7 +83,7 @@ public final class ReviewExecutionFixtures {
         .rank(7)
         .decision(SelectionDecision.SELECTED_DIRECT)
         .cappingFactor(BigDecimal.ONE)
-        .weight(new BigDecimal("0.046749"))
+        .weight(new BigDecimal("4.6749"))
         .build();
     public static final SecurityTrace LEAVER = SecurityTrace.builder()
         .securityId(103)

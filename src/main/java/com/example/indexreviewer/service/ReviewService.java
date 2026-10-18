@@ -13,6 +13,7 @@ import com.example.indexreviewer.service.index.IndexReviewer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -66,6 +67,14 @@ public class ReviewService {
         return auditRepository.findById(reviewId)
             .orElseThrow(() -> new NotFoundException("reviewId", reviewId.toString(),
                 "Review %s does not exist".formatted(reviewId)));
+    }
+
+    /**
+     * Returns the audit records of the stored reviews matching all given filters, newest first. A null filter matches
+     * every review.
+     */
+    public List<ReviewAudit> listAudits(IndexType indexType, LocalDate cutoffDate, LocalDate reviewDate) {
+        return auditRepository.findAll(indexType, cutoffDate, reviewDate);
     }
 
     /**

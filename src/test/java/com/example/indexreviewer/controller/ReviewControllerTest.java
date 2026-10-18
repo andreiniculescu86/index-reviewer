@@ -5,6 +5,8 @@ import com.example.indexreviewer.controller.mapper.ReviewCommandMapperImpl;
 import com.example.indexreviewer.controller.mapper.ReviewResponseMapperImpl;
 import com.example.indexreviewer.exception.GlobalExceptionHandler;
 import com.example.indexreviewer.exception.NotFoundException;
+import com.example.indexreviewer.model.IndexType;
+import com.example.indexreviewer.model.ReviewStatus;
 import com.example.indexreviewer.repository.csv.CsvFileReaderFactory;
 import com.example.indexreviewer.service.ReviewService;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,10 +35,13 @@ import static com.example.indexreviewer.dto.response.error.ErrorCode.MISSING_VAL
 import static com.example.indexreviewer.dto.response.error.ErrorCode.NOT_FOUND;
 import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.CAPPED_COMPONENT;
 import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.COMPOSITION_SIZE;
+import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.CUTOFF_DATE;
 import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.ELIGIBLE_SECURITY;
 import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.JOINER;
 import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.LEAVER;
+import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.REVIEW_DATE;
 import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.REVIEW_ID;
+import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.audit;
 import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.report;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -264,12 +269,29 @@ class ReviewControllerTest {
     }
 
     @Test
-    void list_whenFiltersValid_expectOk() throws Exception {
+    void list_whenFiltersValid_expectMatchingReviews() throws Exception {
+        when(reviewService.listAudits(IndexType.SMI, CUTOFF_DATE, REVIEW_DATE))
+            .thenReturn(List.of(audit(ReviewStatus.SUCCESS, List.of(155, 177))));
+
         mockMvc.perform(get(REVIEWS_PATH)
                 .param("indexType", "SMI")
                 .param("cutoffDate", "2026-09-10")
                 .param("reviewDate", "2026-09-21"))
-            .andExpect(status().isOk());
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$", hasSize(1)))
+            .andExpect(jsonPath("$[0].reviewId").value(REVIEW_ID.toString()))
+            .andExpect(jsonPath("$[0].indexType").value("SMI"))
+            .andExpect(jsonPath("$[0].status").value("SUCCESS"))
+            .andExpect(jsonPath("$[0].composition", contains(155, 177)));
+    }
+
+    @Test
+    void list_whenNoReviews_expectEmptyList() throws Exception {
+        when(reviewService.listAudits(null, null, null)).thenReturn(List.of());
+
+        mockMvc.perform(get(REVIEWS_PATH))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$", hasSize(0)));
     }
 
     @Test
@@ -282,7 +304,7 @@ class ReviewControllerTest {
             .andExpect(jsonPath("$.reviewId").value(REVIEW_ID.toString()))
             .andExpect(jsonPath("$.status").value("SUCCESS"))
             .andExpect(jsonPath("$.constituents[*].securityId", contains(155, 177)))
-            .andExpect(jsonPath("$.constituents[0].weight").value(0.18))
+            .andExpect(jsonPath("$.constituents[0].weight").value(18))
             .andExpect(jsonPath("$.constituents[0].cappingFactor").value(0.565353))
             .andExpect(jsonPath("$.joiners", contains(177)))
             .andExpect(jsonPath("$.leavers", contains(103)));
