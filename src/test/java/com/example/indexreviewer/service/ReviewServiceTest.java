@@ -23,8 +23,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.CAPPED_COMPONENT;
+import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.COMPOSITION_SIZE;
 import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.CUTOFF_DATE;
 import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.ELIGIBLE_SECURITY;
+import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.MISSING_REVIEW_DATA;
 import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.REVIEW_DATE;
 import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.REVIEW_ID;
 import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.audit;
@@ -58,16 +60,18 @@ class ReviewServiceTest {
 
     @Test
     void runReview_whenIndexConfigured_expectReviewReport() {
-        ReviewReport reviewed = ReviewReport.failed(REVIEW_ID);
         when(smiReview.indexType()).thenReturn(IndexType.SMI);
-        when(smiReview.review(SMI_COMMAND)).thenReturn(reviewed);
+        when(smiReview.review(SMI_COMMAND)).thenReturn(ReviewReport.failed(REVIEW_ID));
+        when(traceRepository.findByReviewId(REVIEW_ID)).thenReturn(trace(List.of(), List.of(COMPOSITION_SIZE)));
         ReviewService service = new ReviewService(List.of(smiReview), auditRepository, traceRepository);
 
         ReviewReport report = service.runReview(SMI_COMMAND);
 
-        assertThat(report).isSameAs(reviewed);
+        assertThat(report.getReviewId()).isEqualTo(REVIEW_ID);
+        assertThat(report.getStatus()).isEqualTo(ReviewStatus.FAILED);
+        assertThat(report.getFindings()).containsExactly(COMPOSITION_SIZE);
         verify(smiReview).review(SMI_COMMAND);
-        verifyNoInteractions(auditRepository, traceRepository);
+        verifyNoInteractions(auditRepository);
     }
 
     @Test
@@ -101,6 +105,24 @@ class ReviewServiceTest {
         assertThat(report.getReviewId()).isEqualTo(REVIEW_ID);
         assertThat(report.getStatus()).isEqualTo(ReviewStatus.SUCCESS);
         assertThat(report.getConstituents()).extracting(Constituent::getSecurityId).containsExactly(155);
+    }
+
+    @Test
+    void listReports_whenStored_expectReportsWithFindings() {
+        when(auditRepository.findAll(IndexType.SMI, CUTOFF_DATE, REVIEW_DATE))
+            .thenReturn(List.of(audit(ReviewStatus.SUCCESS_WITH_WARNINGS)));
+        when(traceRepository.findByReviewId(REVIEW_ID))
+            .thenReturn(trace(List.of(CAPPED_COMPONENT), List.of(MISSING_REVIEW_DATA)));
+        ReviewService service = new ReviewService(List.of(), auditRepository, traceRepository);
+
+        List<ReviewReport> reports = service.listReports(IndexType.SMI, CUTOFF_DATE, REVIEW_DATE);
+
+        assertThat(reports).singleElement().satisfies(report -> {
+            assertThat(report.getReviewId()).isEqualTo(REVIEW_ID);
+            assertThat(report.getStatus()).isEqualTo(ReviewStatus.SUCCESS_WITH_WARNINGS);
+            assertThat(report.getConstituents()).extracting(Constituent::getSecurityId).containsExactly(155);
+            assertThat(report.getFindings()).containsExactly(MISSING_REVIEW_DATA);
+        });
     }
 
     @Test

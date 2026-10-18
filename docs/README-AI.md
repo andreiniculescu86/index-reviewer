@@ -49,7 +49,6 @@ application's evolving setup and behavior.
 ## Project guides
 
 - [Architecture guide](architecture.md): service purposes, external systems, and main flow diagrams.
-- [Testing guide](testing.md): this application's test suites, fixtures, services, setup, and commands.
 - [Development setup](development.md): build gates, quality profiles, commands, overrides, and IDE setup.
 - [Methodology](methodology.md): review rules, tie handling, buffer selection and rulebook assumptions.
 - [Data validation](data-validation.md): service-layer review data checks, errors and warnings.
@@ -63,8 +62,8 @@ application's evolving setup and behavior.
 - [Serena configuration](../.serena/project.yml): semantic navigation settings.
 - [Maven build](../pom.xml): selected Java/dependency versions and configured build checks.
 - Quality profiles: [Checkstyle rules](../checkstyle_rules.xml), [IntelliJ formatter](../code_style_formatter.xml) and
-  [IntelliJ inspections](../intelij_inspections.xml) used by Maven and the helper scripts.
-- [Helper scripts](scripts/): Java formatting and inspections.
+  [IntelliJ inspections](../intelij_inspections.xml). Maven uses the Checkstyle rules; the IntelliJ files are for the
+  IDE.
 - Personal Claude configuration, globally installed skills/plugins, and authentication live outside this repository.
 
 ## How the pieces connect

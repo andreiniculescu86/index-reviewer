@@ -170,6 +170,25 @@ class ComponentSelectorStepTest {
         assertThat(result.getFindings()).isEmpty();
     }
 
+    @Test
+    void select_whenExactly20Candidates_expectAllSelected() {
+        List<Candidate> candidates = new ArrayList<>(directCandidates());
+        candidates.add(newcomer(19, "40"));
+        candidates.add(existingComponent(20, "30"));
+
+        SelectionResult result = selector.selectTopCandidates(candidates, List.of(20), SMI_RULES);
+
+        assertThat(result.getComponents()).extracting(Candidate::getSecurityId)
+            .containsExactlyElementsOf(IntStream.rangeClosed(1, 20).boxed().toList());
+        assertThat(result.getTraces()).extracting(SelectionTrace::getSecurityId, SelectionTrace::getRank,
+                SelectionTrace::getDecision)
+            .contains(
+                tuple(18, 18, SelectionDecision.SELECTED_DIRECT),
+                tuple(19, 19, SelectionDecision.SELECTED_BUFFER_NEWCOMER),
+                tuple(20, 20, SelectionDecision.SELECTED_BUFFER_EXISTING_COMPONENT));
+        assertThat(result.getFindings()).isEmpty();
+    }
+
     private static IndexRules rulesWithBufferRank(int bufferRank) {
         return IndexRules.builder()
             .numberOfComponents(20)

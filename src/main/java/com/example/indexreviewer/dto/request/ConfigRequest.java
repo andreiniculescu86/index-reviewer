@@ -1,6 +1,7 @@
 package com.example.indexreviewer.dto.request;
 
 import com.example.indexreviewer.model.IndexType;
+import com.example.indexreviewer.validation.CsvSeparator;
 import com.example.indexreviewer.validation.ValidReviewDates;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
@@ -41,7 +42,9 @@ public class ConfigRequest {
 
     @NotNull
     @Builder.Default
-    @Schema(description = "Column separator of the uploaded CSV files. Defaults to ';'.", example = ";",
+    @CsvSeparator
+    @Schema(description = "Column separator of the uploaded CSV files. Defaults to ';'. Must not be a quote, a "
+        + "backslash, a line break or the null character.", example = ";",
         requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private Character csvSeparator = ';';
 }

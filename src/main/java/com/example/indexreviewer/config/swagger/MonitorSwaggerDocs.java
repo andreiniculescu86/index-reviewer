@@ -79,18 +79,4 @@ public interface MonitorSwaggerDocs {
             schema = @Schema(implementation = ErrorResponse.class)))
     @interface GetReviewAudit {
     }
-
-    @Target({ElementType.METHOD})
-    @Retention(RetentionPolicy.RUNTIME)
-    @Operation(summary = "Download an input file of a review",
-        description = "Returns the stored copy of the CSV file the review was calculated from.")
-    @Parameter(name = "reviewId", in = ParameterIn.PATH, description = "Review execution id.")
-    @Parameter(name = "role", in = ParameterIn.PATH, description = "Input file role.",
-        schema = @Schema(allowableValues = {"universe", "securityData", "composition"}))
-    @ApiResponse(responseCode = "200", description = "Stored input file.")
-    @ApiResponse(responseCode = "404", description = "Unknown review id or input role.",
-        content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-            schema = @Schema(implementation = ErrorResponse.class)))
-    @interface GetReviewInput {
-    }
 }

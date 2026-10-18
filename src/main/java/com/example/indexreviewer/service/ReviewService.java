@@ -36,15 +36,17 @@ public class ReviewService {
     }
 
     /**
-     * Runs the review of the command's index and returns its report. The index review creates the review id and
-     * stores the trace and the audit record, also when the review fails on data errors.
+     * Runs the review of the command's index and returns its report with the findings of the stored trace. The index
+     * review creates the review id and stores the trace and the audit record, also when the review fails on data
+     * errors.
      */
     public ReviewReport runReview(ReviewCommand command) {
         IndexReviewer indexerReviewer = reviews.get(command.getIndexType());
         if (indexerReviewer == null) {
             throw new IndexNotConfiguredException(command.getIndexType());
         }
-        ReviewReport report = indexerReviewer.review(command);
+        ReviewReport reviewed = indexerReviewer.review(command);
+        ReviewReport report = reviewed.withFindings(getTrace(reviewed.getReviewId()).getFindings());
 
         log.info("Finished review {} of {} with status {}, {} constituents, {} joiners, {} leavers",
             report.getReviewId(), command.getIndexType(), report.getStatus(), report.getConstituents().size(),
@@ -67,6 +69,16 @@ public class ReviewService {
         return auditRepository.findById(reviewId)
             .orElseThrow(() -> new NotFoundException("reviewId", reviewId.toString(),
                 "Review %s does not exist".formatted(reviewId)));
+    }
+
+    /**
+     * Returns the reports of the stored reviews matching all given filters, newest first. A null filter matches every
+     * review.
+     */
+    public List<ReviewReport> listReports(IndexType indexType, LocalDate cutoffDate, LocalDate reviewDate) {
+        return listAudits(indexType, cutoffDate, reviewDate).stream()
+            .map(audit -> ReviewReport.of(audit, getTrace(audit.getReviewId())))
+            .toList();
     }
 
     /**

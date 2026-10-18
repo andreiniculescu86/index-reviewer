@@ -1,7 +1,6 @@
 package com.example.indexreviewer.config.swagger;
 
 import com.example.indexreviewer.dto.response.error.ErrorResponse;
-import com.example.indexreviewer.dto.response.review.ReviewAuditResponse;
 import com.example.indexreviewer.dto.response.review.ReviewResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -31,8 +30,8 @@ public interface ReviewSwaggerDocs {
     @Operation(summary = "Run a review using uploaded CSV files",
         description = "Runs the review of the selected index for the given cut-off and review dates. "
             + "Currently, only the SMI index is allowed. Files are mandatory to be uploaded. A review that fails on "
-            + "data errors is stored as well; its findings are available from the trace endpoint. A review that stops "
-            + "on an unexpected error is stored with status ERROR, and the request ends with an internal error.")
+            + "data errors is stored as well. The response lists the review's findings. A review that stops on an "
+            + "unexpected error is stored with status ERROR, and the request ends with an internal error.")
     @ApiResponse(responseCode = "201", description = "Review executed and stored. The body holds the review id.",
         content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
             schema = @Schema(implementation = ReviewResponse.class)))
@@ -44,8 +43,8 @@ public interface ReviewSwaggerDocs {
         content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
             schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(responseCode = "422", description = "The review failed on data errors: the execution is stored, the "
-        + "body is the report with the review id, status FAILED and empty lists. When the index is not configured, "
-        + "the body is an ErrorResponse and nothing is stored.",
+        + "body is the report with the review id, status FAILED, the findings and empty composition lists. When the "
+        + "index is not configured, the body is an ErrorResponse and nothing is stored.",
         content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
             schema = @Schema(oneOf = {ReviewResponse.class, ErrorResponse.class})))
     @interface RunReviewWithUpload {
@@ -54,8 +53,8 @@ public interface ReviewSwaggerDocs {
     @Target({ElementType.METHOD})
     @Retention(RetentionPolicy.RUNTIME)
     @Operation(summary = "List review executions",
-        description = "Returns the audit records of the stored review executions, newest first. All filters are "
-            + "optional and combined.")
+        description = "Returns the reports of the stored review executions, newest first, in the same model as "
+            + "getting one review. All filters are optional and combined.")
     @Parameter(name = "indexType", in = ParameterIn.QUERY, description = "Only executions of this index.",
         example = "SMI")
     @Parameter(name = "cutoffDate", in = ParameterIn.QUERY, description = "Only executions with this cut-off date.",
@@ -64,7 +63,7 @@ public interface ReviewSwaggerDocs {
         example = "2026-09-21")
     @ApiResponse(responseCode = "200", description = "Matching review executions, possibly empty.",
         content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-            array = @ArraySchema(schema = @Schema(implementation = ReviewAuditResponse.class))))
+            array = @ArraySchema(schema = @Schema(implementation = ReviewResponse.class))))
     @ApiResponse(responseCode = "400", description = "A filter value is invalid: unknown index or a date that is not "
         + "ISO (yyyy-MM-dd).",
         content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
@@ -75,7 +74,7 @@ public interface ReviewSwaggerDocs {
     @Target({ElementType.METHOD})
     @Retention(RetentionPolicy.RUNTIME)
     @Operation(summary = "Get a review report",
-        description = "Final constituents with their weighting factors, joiners, leavers and review status.")
+        description = "Final constituents with their weighting factors, joiners, leavers, review status and findings.")
     @Parameter(name = "reviewId", in = ParameterIn.PATH, description = "Review execution id.")
     @ApiResponse(responseCode = "200", description = "Review report.",
         content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,

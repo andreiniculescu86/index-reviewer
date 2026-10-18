@@ -3,6 +3,7 @@ package com.example.indexreviewer.model.report;
 import com.example.indexreviewer.model.Candidate;
 import com.example.indexreviewer.model.ReviewStatus;
 import com.example.indexreviewer.model.audit.ReviewAudit;
+import com.example.indexreviewer.model.trace.Finding;
 import com.example.indexreviewer.model.trace.ReviewTrace;
 import com.example.indexreviewer.model.trace.SecurityTrace;
 import lombok.AccessLevel;
@@ -10,6 +11,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Singular;
 import lombok.Value;
+import lombok.With;
 
 import java.util.Comparator;
 import java.util.List;
@@ -19,8 +21,9 @@ import java.util.stream.Collectors;
 
 /**
  * Review report as the assignment defines it: the final constituents with their weighting factors, the joiners, the
- * leavers and the review status. The review id only locates the stored audit record and trace; it is not part of the
- * report. A review with status FAILED or ERROR has no composition, so its lists are empty.
+ * leavers and the review status, plus the findings that explain the status. The review id only locates the stored
+ * audit record and trace; it is not part of the report. A review with status FAILED or ERROR has no composition, so
+ * its constituent, joiner and leaver lists are empty.
  */
 @Value
 @Builder
@@ -35,6 +38,9 @@ public class ReviewReport {
     List<Integer> joiners;
     @Singular
     List<Integer> leavers;
+    @With
+    @Singular
+    List<Finding> findings;
 
     public static ReviewReport failed(UUID reviewId) {
         return builder()
@@ -73,7 +79,8 @@ public class ReviewReport {
     public static ReviewReport of(ReviewAudit audit, ReviewTrace trace) {
         ReviewReportBuilder report = builder()
             .reviewId(audit.getReviewId())
-            .status(audit.getStatus());
+            .status(audit.getStatus())
+            .findings(trace.getFindings());
         if (!audit.getStatus().isSuccessful()) {
             return report.build();
         }

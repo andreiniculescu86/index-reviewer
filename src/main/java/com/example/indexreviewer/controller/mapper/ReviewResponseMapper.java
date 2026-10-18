@@ -19,9 +19,9 @@ public interface ReviewResponseMapper {
 
     ReviewResponse toReviewResponse(ReviewReport report);
 
-    ReviewAuditResponse toAuditResponse(ReviewAudit audit);
+    List<ReviewResponse> toReviewResponses(List<ReviewReport> reports);
 
-    List<ReviewAuditResponse> toAuditResponses(List<ReviewAudit> audits);
+    ReviewAuditResponse toAuditResponse(ReviewAudit audit);
 
     /**
      * Maps the identity and status of the audit record with the given trace, so that the trace of one security can be

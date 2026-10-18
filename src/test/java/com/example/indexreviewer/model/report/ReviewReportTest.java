@@ -32,6 +32,7 @@ class ReviewReportTest {
         assertThat(report.getConstituents().getFirst().getCappingFactor()).isEqualByComparingTo("0.565353");
         assertThat(report.getJoiners()).containsExactly(177);
         assertThat(report.getLeavers()).containsExactly(103);
+        assertThat(report.getFindings()).containsExactly(MISSING_REVIEW_DATA);
     }
 
     @Test
@@ -43,6 +44,8 @@ class ReviewReportTest {
         assertThat(report.getConstituents()).isEmpty();
         assertThat(report.getJoiners()).isEmpty();
         assertThat(report.getLeavers()).isEmpty();
+        assertThat(report.getFindings()).containsExactly(COMPOSITION_SIZE);
+        assertThat(report.getFindings()).containsExactly(COMPOSITION_SIZE);
     }
 
     @Test
@@ -80,6 +83,7 @@ class ReviewReportTest {
         assertThat(report.getConstituents()).isEmpty();
         assertThat(report.getJoiners()).isEmpty();
         assertThat(report.getLeavers()).isEmpty();
+        assertThat(report.getFindings()).isEmpty();
     }
 
     private static Candidate candidate(int securityId, boolean existingComponent) {

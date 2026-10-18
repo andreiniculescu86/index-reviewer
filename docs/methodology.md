@@ -1,235 +1,134 @@
 # Review methodology
 
-This page describes how the application reviews the SMI: which data it uses, how it ranks and selects the components,
-and how it weights them. It follows the assignment and the SIX Swiss Index Methodology Rulebook, version 3.40 of
-08.06.2026 (configured as `methodology-version`). Where the rulebook does not define a case, the rule chosen here is
-marked as an **assumption**.
+How the application reviews the SMI. It follows the assignment and the SIX Swiss Index Methodology Rulebook 3.40 of
+08.06.2026. Rules that the rulebook does not define are marked as **assumption**.
 
-How the input data is validated before the review is described in [Data validation](data-validation.md). How every
-decision can be followed afterwards is described in [Traceability and audit](traceability-and-auditability.md).
+See also [Data validation](data-validation.md) and [Traceability and audit](traceability-and-auditability.md).
 
 ## Configuration
 
-The index rules are configured per index in [application.yml](../src/main/resources/application.yml).
+The index rules are in [application.yml](../src/main/resources/application.yml).
 
-| Property                | SMI value | Rulebook source                           |
-|-------------------------|-----------|-------------------------------------------|
-| `number-of-components`  | 20        | 5.12.3.2, "Number of Index Components"    |
-| `direct-selection-rank` | 18        | 5.12.3.2, "Direct Selection: Rank 1-18"   |
-| `buffer-rank`           | 22        | 5.12.3.2, "Buffer: Rank 19-22"            |
-| `cap-percentage`        | 18        | 5.12.4, components limited to 18%         |
-| `methodology-version`   | 3.40      | Rulebook version the rules are taken from |
+| Property                | SMI  | Rulebook                      |
+|-------------------------|------|-------------------------------|
+| `number-of-components`  | 20   | 5.12.3.2                      |
+| `direct-selection-rank` | 18   | 5.12.3.2, ranks 1 to 18       |
+| `buffer-rank`           | 22   | 5.12.3.2, buffer ranks 19-22  |
+| `cap-percentage`        | 18   | 5.12.4                        |
+| `methodology-version`   | 3.40 | Rulebook version of the rules |
 
-The application does not start when `direct-selection-rank` is greater than `number-of-components` or
-`number-of-components` is greater than `buffer-rank`, because the direct selection and the buffer could then not fill
-the index. If a selection still does not have exactly `number-of-components` components, the selection adds a
-`SELECTION_SIZE` error and the review stops with status `FAILED` instead of returning a wrong index. The ranks and
-decisions of the selection stay in the trace.
+The application does not start when:
 
-The application also does not start when `number-of-components` x `cap-percentage` is below 100, because the capped
-weights could then not add up to 100%. See [Weighting and capping](#weighting-and-capping).
+- `direct-selection-rank` > `number-of-components`, or `number-of-components` > `buffer-rank`;
+- `number-of-components` x `cap-percentage` < 100, because the weights could then not meet the cap.
 
 ## Dates
 
-| Date    | Q3 2026    | Used for                                          |
-|---------|------------|---------------------------------------------------|
-| Cut-off | 2026-09-10 | Price                                             |
-| Review  | 2026-09-21 | Universe membership, number of shares, free float |
+| Date    | Q3 2026    | Used for                               |
+|---------|------------|----------------------------------------|
+| Cut-off | 2026-09-10 | Price                                  |
+| Review  | 2026-09-21 | Universe, number of shares, free float |
 
-The dates match the rulebook schedule for September 2026. The capping data cut-off is the Thursday 8 days before the
-implementation on the third Friday, 18 September (section 4.2). The review date is the Monday after implementation,
-when the new shares and free float become effective (section 3.1).
+Both dates match the rulebook schedule: the capping data cut-off is the Thursday 8 days before implementation on
+Friday 18 September (section 4.2), and new shares and free float apply from the Monday after (section 3.1).
 
 ## Eligibility
 
-A security is a candidate when it is in the SPI universe on the review date (section 5.12.3.2, the index universe of
-the SMI is the SPI) and has complete and valid data for both dates. Securities without complete data are excluded
-with a warning; securities with invalid data fail the review. See [Data validation](data-validation.md).
+A security is a candidate when it is in the SPI universe on the review date and has valid data for both dates.
+Missing data excludes the security with a warning. Invalid data fails the review. See
+[Data validation](data-validation.md).
 
-Universe membership is taken as given; the SPI free float threshold of 20% (section 5.2.3.2) is not re-checked (because
-requirements did not specify it nor did it reference that section).
+The universe file is taken as given. The SPI free float minimum of 20% (section 5.2.3.2) is not checked again,
+because the assignment does not ask for it.
 
-## Free float market capitalization
+## FFMCAP
 
 ```
 FFMCAP = Price(cut-off date) x Shares(review date) x Free Float(review date)
 ```
 
-The product is calculated exactly with `BigDecimal`, without rounding.
+Calculated exactly with `BigDecimal`, without rounding.
 
 ## Ranking
 
 Candidates are ranked by FFMCAP, highest first.
 
-**Equal FFMCAP (assumption).** The rulebook has no rule for equal values. Its governance section treats a missing rule
-as an "insufficient rule" that SIX decides through an escalation process, guided by the basic principles of section
-1.3, among them stability ("High index continuity"). Equal FFMCAPs are therefore ordered:
+**Equal FFMCAP (assumption).** The rulebook has no rule for ties. Following its stability principle (section 1.3),
+equal FFMCAPs are ordered:
 
-1. Existing components first, so that a tie keeps the current members in the index.
-2. Existing components among themselves in the order they appear in the current composition file.
-3. Newcomers among themselves by the lower security id, so that the order is always the same.
+1. existing components first;
+2. existing components in the order of the composition file;
+3. newcomers by the lower security id.
 
-The order of the current composition is used as given in the input file. The application does not check what the order
-is based on.
-
-When candidates with the same FFMCAP end up partly selected and partly not, the tie order and not the FFMCAP decided
-the composition. The review then adds a `SELECTION_TIE` warning that names both groups, so that a person can check the
-result. A tie that does not split the selection, for example inside ranks 1 to 18, adds no warning.
+When a tie decides who is selected, the review adds a `SELECTION_TIE` warning.
 
 ## Selection with the buffer
 
-The selection follows section 5.12.3.2:
+Section 5.12.3.2:
 
-1. Ranks 1 to 18 are selected directly.
-2. The remaining 2 seats are filled from the buffer, ranks 19 to 22. Existing components in the buffer are selected
-   first, in rank order.
-3. Seats that are still open go to the newcomers in the buffer, in rank order.
-4. Candidates ranked 23 or lower are never selected. An existing component there leaves the index.
+1. Ranks 1 to 18 are selected.
+2. The last 2 seats go to existing components in ranks 19 to 22, in rank order.
+3. Seats still free go to newcomers in ranks 19 to 22, in rank order.
+4. Rank 23 or lower is never selected. An existing component there leaves.
 
-Each candidate gets one decision in the trace: `SELECTED_DIRECT`, `SELECTED_BUFFER_EXISTING_COMPONENT`,
-`SELECTED_BUFFER_NEWCOMER`, `NOT_SELECTED_BUFFER` or `NOT_SELECTED_BELOW_BUFFER`.
+If the selection does not have exactly 20 components, the review fails with `SELECTION_SIZE`.
 
-**Example with a tie at the end of the buffer.** Rank 21 has an FFMCAP of 9. Three candidates follow with an FFMCAP
-of 8: one newcomer and two existing components. Because existing components come first in a tie, the two members take
-ranks 22 and 23 and the newcomer takes rank 24. The member on rank 22 is inside the buffer and keeps its seat. The
-member on rank 23 is below the buffer and leaves. As many members as fit into the buffer are kept, ahead of newcomers
-with the same FFMCAP. The review adds a `SELECTION_TIE` warning.
+**Example.** Ranks 19 and 20 are newcomers, ranks 21 and 22 are existing components. The existing components keep
+the 2 seats. The newcomers are not selected.
 
-**Example with tied existing components.** Ranks 19 and 20 are newcomers with an FFMCAP of 11 and 10. Securities 21
-to 30 all have an FFMCAP of 8, and 25, 28 and 30 are existing components. The current composition lists them in the
-order 30, 25, 28.
-
-| Rank | Security | FFMCAP | Existing component | Decision                             |
-|------|----------|--------|--------------------|--------------------------------------|
-| 19   | 19       | 11     | no                 | `NOT_SELECTED_BUFFER`                |
-| 20   | 20       | 10     | no                 | `NOT_SELECTED_BUFFER`                |
-| 21   | 30       | 8      | yes                | `SELECTED_BUFFER_EXISTING_COMPONENT` |
-| 22   | 25       | 8      | yes                | `SELECTED_BUFFER_EXISTING_COMPONENT` |
-| 23   | 28       | 8      | yes                | `NOT_SELECTED_BELOW_BUFFER`          |
-| 24   | 21       | 8      | no                 | `NOT_SELECTED_BELOW_BUFFER`          |
-| 25   | 22       | 8      | no                 | `NOT_SELECTED_BELOW_BUFFER`          |
-
-Ranks 26 to 30 continue with the newcomers 23, 24, 26, 27 and 29, none selected. The existing components fill the two
-buffer seats in composition order, so 30 and 25 stay and 28 leaves. The newcomers 19 and 20 lose their seats although
-their FFMCAP is higher, because existing components in the buffer come first. The review adds a `SELECTION_TIE`
-warning.
-
-**Result for Q3 2026.** With the assignment data, the existing components 160 and 81 on ranks 21 and 22 keep their
-seats, ahead of the newcomers 249 and 28 on ranks 19 and 20. Security 177 joins on rank 7 and security 103 leaves.
-`SmiReviewTest` runs the review on these files and checks this result.
+**Q3 2026 result.** Existing components 160 and 81 on ranks 21 and 22 stay, ahead of newcomers 249 and 28 on ranks 19
+and 20. Security 177 joins on rank 7, security 103 leaves. `SmiReviewTest` checks this.
 
 ## Weighting and capping
 
-The assignment and the rulebook define:
+From the assignment and the rulebook (sections 2.1, 5.12.4):
 
-- Each component is weighted by its share of the total FFMCAP of the selected components (section 5.12.4).
-- A weight above the cap of 18% is limited to exactly the cap with a capping factor (sections 2.1 and 5.12.4).
-- The weight cut from a capped component goes to the components below the cap, in proportion to their weights (the
-  example in the assignment).
+- the weight is the share of the total FFMCAP of the 20 components;
+- a weight above 18% is cut to exactly 18% with a capping factor;
+- the cut weight goes to the other components in proportion to their weight.
 
-Weights are percentages of the index, `18` for 18%, as in the assignment and the rulebook. They have 4 decimals and
-add up to exactly 100 in the report, the trace and the API.
+Weights are percentages, `18` for 18%, with 4 decimals, and add up to exactly 100.
 
-### Assumptions on the capping formula
+### Assumptions
 
-The rulebook gives no formula for the capping factor; the calculation details are in a separate SIX calculation
-rulebook that is not part of the assignment. The assignment leaves the details open. The application uses these
-**assumptions**:
+The rulebook gives no formula. It is in a separate SIX calculation rulebook that is not part of the assignment.
 
-1. **Rounds.** Giving weight to the components below the cap can push one of them above the cap. The redistribution
-   is therefore repeated in rounds until no weight exceeds the cap. The assignment example needs one round; the rule
-   that no constituent may exceed the cap requires the repetition in general.
-2. **Each round starts from FFMCAP.** Instead of adding the cut weight on top of the previous weights, every round
-   recomputes the weights from FFMCAP:
-    - a capped component gets exactly the cap;
-    - every other component gets `remaining weight x FFMCAP / FFMCAP of all uncapped components`, where
-      `remaining weight = 100% - cap x number of capped components`.
+1. **Rounds.** Giving weight to the others can push one of them above the cap, so capping repeats until no weight is
+   above the cap.
+2. **Each round starts from FFMCAP.** Capped components get the cap. The others get
+   `remaining weight x FFMCAP / FFMCAP of all uncapped`, with `remaining weight = 100 - cap x number capped`. This
+   equals the proportional sharing, without rounding errors adding up over rounds.
+3. **Capping factor.** 1 when not capped. When capped:
+   `cap x FFMCAP of all uncapped / (remaining weight x FFMCAP)`. `FFMCAP x capping factor` then gives the capped
+   weights. The scale is a convention: 1 means "not capped".
+4. **4 decimals.** Every division is rounded half up to 4 decimals.
+5. **Rounding leftover.** The rounded weights can miss 100 by a few 0.0001. The difference goes to the last
+   component, the lowest rank. A weight above the cap then gives an `INVALID_WEIGHTS` error. With a valid
+   configuration this cannot happen.
 
-   This gives the same result as handing out the cut weight in proportion, without rounding differences adding up over
-   the rounds.
-3. **Capping factor.** An uncapped component has a factor of 1, so its full FFMCAP counts. A capped component gets
-   `cap x FFMCAP of all uncapped components / (remaining weight x FFMCAP)`, the factor that brings its FFMCAP down to
-   the cap. `FFMCAP x capping factor`, divided by its total, gives the weights. Multiplying every factor by the same
-   number gives the same weights, so the scale is a convention; this one makes 1 mean "not capped".
-4. **4 decimals.** Every division, for the weights and the capping factors, is rounded half up to 4 decimals.
-   Capped weights are set to exactly the cap. Each weight comes from a single division of exact values, because every
-   round starts from FFMCAP, so the rounding of one round does not carry into the next. Because the capping factors
-   have 4 decimals, `FFMCAP x capping factor` reproduces the weights only approximately.
-5. **Rounding leftover to the last component.** The rounded weights can add up to a few units of 0.0001 more or less
-   than 100. The difference is added to the weight of the last component, the one with the lowest rank, so that the
-   weights add up to exactly 100. With 20 components, the difference is at most 0.0010. The weights are the same
-   everywhere: in the weighting result, the trace, the report and the API. The review then checks that no weight
-   exceeds the cap; otherwise it adds an `INVALID_WEIGHTS` error.
-6. **Cap too low.** When `number of components x cap` is below 100%, no weights can meet the cap. The application does
-   not start with such a configuration. If it still happens, the last component gets the missing weight and exceeds
-   the cap, and the check of assumption 5 adds an `INVALID_WEIGHTS` error.
+**Example.** Components A, B, C, D with FFMCAP 50, 30, 15, 5 and a cap of 35%:
 
-### Example with two rounds
+| Round | Weights                   | Newly capped |
+|-------|---------------------------|--------------|
+| 1     | A 50, B 30, C 15, D 5     | A            |
+| 2     | A 35, B 39, C 19.5, D 6.5 | B            |
+| 3     | A 35, B 35, C 22.5, D 7.5 | none, stop   |
 
-Five components, a cap of 21%. Weights are rounded to 4 decimals, so a total in the rounds can differ by 0.0001.
+Capping factors: A `35 x 20 / (30 x 50) = 0.4667`, B `35 x 20 / (30 x 30) = 0.7778`, C and D `1`.
+`WeightCalculatorStepTest` checks a two-round example with 5 components and a cap of 21%.
 
-| Component | FFMCAP    | Weight before capping           |
-|-----------|-----------|---------------------------------|
-| A         | 8,928.00  | 8,928.00 / 39,025.38 = 22.8774% |
-| B         | 8,438.75  | 8,438.75 / 39,025.38 = 21.6237% |
-| C         | 7,860.93  | 7,860.93 / 39,025.38 = 20.1431% |
-| D         | 7,235.20  | 7,235.20 / 39,025.38 = 18.5397% |
-| E         | 6,562.50  | 6,562.50 / 39,025.38 = 16.8160% |
-| Total     | 39,025.38 | 100%                            |
-
-**Round 1.** A and B exceed 21% and are capped.
-
-- Cut weight: (22.8774 - 21) + (21.6237 - 21) = 1.8774 + 0.6237 = 2.5012%.
-- C, D and E are below the cap and receive it in proportion to their weights, which add up to 55.4988%:
-
-| Component | Share of the cut weight    | Receives                    | New weight                   |
-|-----------|----------------------------|-----------------------------|------------------------------|
-| C         | 20.1431 / 55.4988 = 36.29% | 2.5012 x 0.3629 = 0.9078%   | 20.1431 + 0.9078 = 21.0509%  |
-| D         | 18.5397 / 55.4988 = 33.41% | 2.5012 x 0.3341 = 0.8355%   | 18.5397 + 0.8355 = 19.3753%  |
-| E         | 16.8160 / 55.4988 = 30.30% | 2.5012 x 0.3030 = 0.7578%   | 16.8160 + 0.7578 = 17.5738%  |
-
-With the formula of assumption 2: remaining weight = 100% - 2 x 21% = 58%, FFMCAP of C, D and E = 21,658.63, so C gets
-58% x 7,860.93 / 21,658.63 = 21.0509%. C was below the cap before the round and now exceeds it.
-
-**Round 2.** C is capped.
-
-- Cut weight: 21.0509 - 21 = 0.0509%.
-- D and E receive it in proportion to their weights, which add up to 36.9491%:
-
-| Component | Share of the cut weight    | Receives                    | New weight                   |
-|-----------|----------------------------|-----------------------------|------------------------------|
-| D         | 19.3753 / 36.9491 = 52.44% | 0.0509 x 0.5244 = 0.0267%   | 19.3753 + 0.0267 = 19.4020%  |
-| E         | 17.5738 / 36.9491 = 47.56% | 0.0509 x 0.4756 = 0.0242%   | 17.5738 + 0.0242 = 17.5980%  |
-
-With the formula: remaining weight = 100% - 3 x 21% = 37%, FFMCAP of D and E = 13,797.70, so D gets
-37% x 7,235.20 / 13,797.70 = 19.4020%. No weight exceeds 21%, so the rounds stop.
-
-**Rounding leftover.** Rounded to 4 decimals, D and E are 19.4020% and 17.5980%. With A, B and C at 21.0000%, the
-total is exactly 100.0000%, so there is no leftover for E, the last component.
-
-**Result.**
-
-| Component | Final weight | Capping factor | FFMCAP x capping factor |
-|-----------|--------------|----------------|-------------------------|
-| A         | 21.0000%     | 0.8771         | 7,830.75                |
-| B         | 21.0000%     | 0.9280         | 7,831.16                |
-| C         | 21.0000%     | 0.9962         | 7,831.06                |
-| D         | 19.4020%     | 1              | 7,235.20                |
-| E         | 17.5980%     | 1              | 6,562.50                |
-| Total     | 100.0000%    |                | 37,290.67               |
-
-For A the factor is 21% x 13,797.70 / (37% x 8,928.00) = 0.8771. With 4-decimal factors,
-`FFMCAP x capping factor / 37,290.67` gives the weights only approximately, for example 20.9992% for A.
-`WeightCalculatorStepTest` checks this example.
-
-**Result for Q3 2026.** With the assignment data, securities 155 and 205 weigh 25.42% and 23.49% before capping. One
-round caps both at 18.0000%, with capping factors 0.5654 and 0.6117, and the largest uncapped weight is security 63
-with 14.2590%. The rounded weights add up to 99.9998%, so the last component, security 81 on rank 22, gets the leftover
-of 0.0002% and ends at 0.8505%. The 20 weights then add up to exactly 100.0000%. `SmiReviewTest` runs the review on
-these files and checks this result.
+**Q3 2026 result.** Securities 155 and 205 weigh 25.42% and 23.49% before capping. Both are capped at 18%, with
+capping factors 0.5654 and 0.6117. The rounded weights add up to 99.9998%, so security 81, the last component, gets
+0.0002% and ends at 0.8505%. `SmiReviewTest` checks this.
 
 ## Joiners and leavers
 
-- **Joiners** are selected components that are not in the current composition.
-- **Leavers** are current components that are not selected.
+- **Joiners:** selected, but not in the current composition.
+- **Leavers:** in the current composition, but not selected.
 
+## Not implemented
+
+- **Issuer aggregation** (section 5.12.4): the data has no issuer, so each security id counts as its own issuer.
+- **Liquidity rule for multiple primary listings** (section 5.12.3.2): the data has no turnover.
+- **Selection list** (section 4.3): the assignment ranks by FFMCAP only, not by 12-month FFMCAP and turnover.
+- **Capping between reviews** (section 5.12.4): only the review itself is in scope.

@@ -30,6 +30,7 @@ public class WeightCalculatorStep {
 
     private static final BigDecimal FULL_INDEX_WEIGHT = BigDecimal.valueOf(100);
     private static final int WEIGHT_DECIMALS = 4;
+    private static final BigDecimal UNCAPPED_FACTOR = BigDecimal.ONE.setScale(WEIGHT_DECIMALS);
 
     /**
      * Returns the components in the given order with their weighting factors, the trace records and the findings of
@@ -116,7 +117,7 @@ public class WeightCalculatorStep {
                     .cappingFactor(isComponentCapped
                         ? divideToWeightDecimals(capPercentage.multiply(uncappedTotalFfmcap),
                         remainingWeight.multiply(component.getFfmcap()))
-                        : BigDecimal.ONE)
+                        : UNCAPPED_FACTOR)
                     .build();
             })
             .toList();

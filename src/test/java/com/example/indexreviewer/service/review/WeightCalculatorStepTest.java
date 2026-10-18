@@ -36,6 +36,19 @@ class WeightCalculatorStepTest {
     }
 
     @Test
+    void calculateWeights_whenWeighted_expectFourDecimals() {
+        List<Candidate> components = List.of(component(1, "600"), component(2, "300"), component(3, "100"));
+
+        WeightResult result = calculator.calculateWeights(components, HALF);
+
+        assertThat(result.getConstituents()).extracting(Constituent::getWeight).extracting(BigDecimal::scale)
+            .containsOnly(4);
+        assertThat(result.getConstituents()).extracting(Constituent::getCappingFactor)
+            .extracting(BigDecimal::scale)
+            .containsOnly(4);
+    }
+
+    @Test
     void calculateWeights_whenCappedInRounds_expectCap() {
         List<Candidate> components = List.of(component(1, "8928.00"), component(2, "8438.75"),
             component(3, "7860.93"), component(4, "7235.20"), component(5, "6562.50"));

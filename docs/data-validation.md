@@ -1,91 +1,65 @@
-# Data validation in the service layer
+# Data validation
 
-This page describes how the review service validates the security data before it calculates the free float market
-capitalization (FFMCAP) and the current composition before the review. It covers only the service layer. Problems
-with the uploaded files themselves, such as a missing file, a missing required CSV header or a value that cannot be
-parsed, are rejected earlier by the controller and the CSV reader.
+How the review checks its input data before it calculates FFMCAP.
 
-Checks run at two levels. Review-level checks, about the whole input or the index rules, run in `ReviewDataValidator`,
-which the index review (`SmiReviewer`) calls. Row-level checks, which decide whether a security is excluded, run where
-the rows are used, in the FFMCAP calculation through `SecurityRecordValidator`.
+File problems, such as a missing file, a missing CSV header or a value that cannot be parsed, are rejected before the
+review starts, with HTTP 400. They are not stored as reviews.
 
-The CSV reader strips leading and trailing whitespace from every value and header name. In the security data, only the
-`id` and `date` columns are required by the reader, because a cut-off date row needs only the price. Missing shares or
-free float on a review date row are reported by the service as errors. A missing `price`, `free_float` or `shares`
-column is not rejected by the reader; its values are read as empty, so every affected row gets a finding instead.
+The checks run in `ReviewDataValidator` (whole input) and `SecurityRecordValidator` (one security). Each problem gives
+a finding with a code, a severity, the security id, the field and a message. The findings are stored in the
+[trace](traceability-and-auditability.md#findings).
 
-## General rules
+## Severities
 
-Every check produces a finding with a code, a severity, the security id when the finding is about one security, the
-field that caused it and a message. The field names a value (`price`, `shares`, `freeFloat`), an input file
-(`universe`, `securityData`, `composition`) or the `date` of a duplicate row. The severity of each code is fixed in
-`FindingCode`. Validators and steps return their findings, and the index reviewer stores them in the review trace
-as soon as the stage ends, see [Traceability](traceability-and-auditability.md).
+| Severity  | Meaning                                     | Effect                                                   |
+|-----------|---------------------------------------------|----------------------------------------------------------|
+| `ERROR`   | The data would make the result wrong        | Review stops, status `FAILED`, HTTP 422 with empty lists |
+| `WARNING` | The data is handled the same way every time | Security excluded or duplicate counted once; review runs |
+| `INFO`    | Data that was not needed                    | None                                                     |
 
-**Errors** mean the data would make the review result wrong or unreliable.
+All rows are checked first, so every error is reported, not only the first one.
 
-- Every row is validated first, so all errors of all securities are collected, not only the first one.
-- The review stops after the step that found errors. The security traces stored until then are kept.
-- The audit record of the review is stored with status `FAILED`.
-- The API returns HTTP 422 with the report: the review id, status `FAILED` and empty lists. The findings are in
-  the stored trace of the review.
-
-**Warnings** mean the data can be handled in a deterministic way and the result stays correct.
-
-- The security is excluded, or a duplicate row is counted once.
-- The review continues. A review with warnings and no errors gets the status `SUCCESS_WITH_WARNINGS`.
-
-**Infos** summarize data that was not needed. They do not indicate a problem and do not affect the review status.
-
-This follows the rulebook correction policy: unavailable data does not stop a review (section 7.1), incorrect data is
-not used as it is (section 7.2).
+This follows the rulebook correction policy: missing data does not stop a review (section 7.1), wrong data is not
+used (section 7.2).
 
 ## Checks
 
-The cut-off date row provides the price. The review date row provides the shares and the free float.
+The cut-off date row gives the price. The review date row gives the shares and the free float.
 
-| Check                                                                      | Code                                 | Type    |
-|----------------------------------------------------------------------------|--------------------------------------|---------|
-| Universe has no members on the review date                                 | `MISSING_DATE`                       | Error   |
-| Security data has no rows for the cut-off date or the review date          | `MISSING_DATE`                       | Error   |
-| Composition has not as many unique members as the index needs (20 for SMI) | `COMPOSITION_SIZE`                   | Error   |
-| Fewer securities with a valid FFMCAP than the index needs                  | `TOO_FEW_ELIGIBLE`                   | Error   |
-| Price on the cut-off date is 0 or negative                                 | `INVALID_VALUE`                      | Error   |
-| Shares on the review date are missing, 0 or negative                       | `INVALID_VALUE`                      | Error   |
-| Free float on the review date is missing, 0 or negative                    | `INVALID_VALUE`                      | Error   |
-| Free float on the review date is greater than 1                            | `INVALID_VALUE`                      | Error   |
-| Price, shares or free float has more than 20 integer digits or 20 decimals | `INVALID_VALUE`                      | Error   |
-| Two rows for the same security and date with different values              | `CONFLICTING_DUPLICATE`              | Error   |
-| No row or no price on the cut-off date, the security is excluded           | `MISSING_CUTOFF_PRICE`               | Warning |
-| No row on the review date, the security is excluded                        | `MISSING_REVIEW_DATA`                | Warning |
-| Two identical rows for the same security and date, counted once            | `DUPLICATE_ROW`                      | Warning |
-| An existing index component is not in the universe on the review date      | `EXISTING_COMPONENT_NOT_IN_UNIVERSE` | Warning |
-| Securities in the security data that are not in the universe               | `IGNORED_SECURITIES`                 | Info    |
+| Check                                                           | Code                                 | Severity |
+|-----------------------------------------------------------------|--------------------------------------|----------|
+| Universe has no members on the review date                      | `MISSING_DATE`                       | Error    |
+| Security data has no rows for the cut-off or the review date    | `MISSING_DATE`                       | Error    |
+| Composition does not have 20 different securities               | `COMPOSITION_SIZE`                   | Error    |
+| Fewer than 20 securities have a valid FFMCAP                    | `TOO_FEW_ELIGIBLE`                   | Error    |
+| Price is 0 or negative                                          | `INVALID_VALUE`                      | Error    |
+| Shares are missing, 0 or negative                               | `INVALID_VALUE`                      | Error    |
+| Free float is missing, 0, negative or above 1                   | `INVALID_VALUE`                      | Error    |
+| A value has more than 20 integer digits or 20 decimals          | `INVALID_VALUE`                      | Error    |
+| Two rows for the same security and date with different values   | `CONFLICTING_DUPLICATE`              | Error    |
+| No price on the cut-off date: security excluded                 | `MISSING_CUTOFF_PRICE`               | Warning  |
+| No row on the review date: security excluded                    | `MISSING_REVIEW_DATA`                | Warning  |
+| Two identical rows for the same security and date: counted once | `DUPLICATE_ROW`                      | Warning  |
+| A current component is not in the universe: it leaves           | `EXISTING_COMPONENT_NOT_IN_UNIVERSE` | Warning  |
+| Security data has securities outside the universe: ignored      | `IGNORED_SECURITIES`                 | Info     |
 
-One row can produce more than one error, for example shares of 0 and a free float of 1.5.
+Notes:
 
-Duplicate rows are compared by value, so `0.5` and `0.50` count as the same value.
+- One row can have several errors, for example shares of 0 and a free float of 1.5.
+- Duplicates are compared by value, so `0.5` and `0.50` are equal.
+- A security with an error or a warning gets the decision `NOT_ELIGIBLE` in the trace.
+- The digit limit keeps the FFMCAP calculation in range. The assignment data has at most 10 integer digits and 4
+  decimals.
 
-Securities that are not in the universe on the review date are ignored. One info states how many there were. An
-existing index component that is not in the universe still gets a trace with the decision `NOT_ELIGIBLE`, so that it
-can be explained as a leaver.
+## Handled without a finding
 
-The date checks and the composition size check run before the FFMCAP calculation. When the universe or the security
-data has no rows for a required date, the error lists the dates that the file contains, and the review stops before
-the securities are validated one by one. The check for too few securities runs after the FFMCAP calculation and counts
-only securities with a valid FFMCAP, so it can be reported together with the errors of invalid rows.
+- Leading and trailing spaces in values and headers are removed.
+- Duplicate universe rows and duplicate composition ids are counted once.
+- A price on a review date row is ignored.
 
-The digit limit keeps the FFMCAP multiplication within the range of `BigDecimal`. The real data has at most 10 integer
-digits and 4 decimal places.
+## Assignment data
 
-The security traces are ordered by security id. The findings about duplicate rows and ignored securities come first,
-followed by the findings of each security in security id order.
+The review of the assignment files ends with `SUCCESS_WITH_WARNINGS`:
 
-A security with conflicting duplicate rows gets no FFMCAP and the decision `NOT_ELIGIBLE`, like a security with an
-invalid value.
-
-## Handled without a message
-
-- Duplicate universe rows are counted once. They cannot conflict, because a universe row holds only a date and an id.
-- A price on a review date row is ignored. Only the cut-off date price is used.
-- Duplicate composition ids are counted once.
+- security 166 has no review date row (`MISSING_REVIEW_DATA`) and is excluded;
+- the universe lists 204 securities twice; they are counted once, without a finding.
