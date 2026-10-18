@@ -32,6 +32,7 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.core.exc.StreamReadException;
 import tools.jackson.databind.exc.InvalidFormatException;
 import tools.jackson.databind.exc.MismatchedInputException;
+import tools.jackson.databind.exc.UnrecognizedPropertyException;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -209,6 +210,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     private static Error unreadableJsonError(HttpMessageNotReadableException ex) {
+        UnrecognizedPropertyException unknownField = findCause(ex, UnrecognizedPropertyException.class);
+        if (unknownField != null) {
+            return new Error(ErrorCode.INVALID_VALUE, jsonPath(unknownField), unknownField.getPropertyName(),
+                "unknown field; allowed: " + unknownField.getKnownPropertyIds().stream()
+                    .map(Object::toString)
+                    .sorted()
+                    .collect(Collectors.joining(", ")));
+        }
         InvalidFormatException invalidFormat = findCause(ex, InvalidFormatException.class);
         if (invalidFormat != null) {
             return new Error(ErrorCode.INVALID_VALUE, jsonPath(invalidFormat), String.valueOf(invalidFormat.getValue()),

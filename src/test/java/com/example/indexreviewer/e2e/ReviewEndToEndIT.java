@@ -166,6 +166,20 @@ class ReviewEndToEndIT {
     }
 
     @Test
+    void review_whenConfigFieldMisspelled_expectRejected() {
+        HttpResult result = postReview("scenario1", """
+            {"cutOffDate": "2026-06-10", "reviewDate": "2026-09-21"}
+            """);
+
+        assertThat(result.status()).isEqualTo(400);
+        JsonNode error = result.body().path("errors").get(0);
+        assertThat(error.path("code").asString()).isEqualTo("INVALID_VALUE");
+        assertThat(error.path("field").asString()).isEqualTo("configRequest.cutOffDate");
+        assertThat(error.path("value").asString()).isEqualTo("cutOffDate");
+        assertThat(error.path("message").asString()).contains("cutoffDate");
+    }
+
+    @Test
     void review_whenCommaSeparatedExport_expectParsed() {
         HttpResult defaultSeparator = postReview("scenario8", null);
         HttpResult commaSeparator = postReview("scenario8", """
