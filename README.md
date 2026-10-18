@@ -7,7 +7,8 @@ A review takes 3 CSV files: the SPI universe, the security data and the current 
 
 1. validates the data and records every problem as an error or a warning;
 2. calculates the free float market capitalization (FFMCAP) of every eligible security, with the price of the
-   cut-off date (2026-09-10) and the shares and free float of the review date (2026-09-21);
+   cut-off date (2026-09-10) and the shares and free float of the review date (2026-09-21); Dates are configurable if
+   these are present in the CSV files.
 3. ranks the securities by FFMCAP and selects the 20 components, ranks 1 to 18 directly and ranks 19 to 22 through
    the buffer, where current components keep their seats first;
 4. weights the components by FFMCAP and caps every weight at 18% with a capping factor.
@@ -18,6 +19,22 @@ trace per security, so its result can be explained afterwards.
 
 The assignment, its requirements and the CSV files are in
 [docs/assignment-requirements-SIX](docs/assignment-requirements-SIX).
+
+Note: The Markdown documentation is structured primarily to support the review of this home assignment.
+In a production project, some of this information would be organized and maintained differently.
+
+## Contents
+
+- [Requirements](#requirements)
+- [Build and run](#build-and-run)
+- [Run a review](#run-a-review)
+    - [Expected result](#expected-result)
+    - [Index, dates and separator](#index-dates-and-separator)
+    - [Response fields](#response-fields)
+- [Endpoints](#endpoints)
+- [Tests](#tests)
+- [Documentation](#documentation)
+- [Next steps](#next-steps)
 
 ## Requirements
 
@@ -40,38 +57,6 @@ java -jar target/index-reviewer-0.1.0-SNAPSHOT.jar
 ```
 
 Swagger UI is also available: http://localhost:8096/. It documents every endpoint and can upload the files.
-
-## Tests
-
-`./mvnw verify` runs everything below and fails the build on any failed test or Checkstyle violation.
-
-| Check             | What it covers                                  | Report                          |
-|-------------------|-------------------------------------------------|---------------------------------|
-| Unit tests        | 208 tests in 18 classes, one part at a time     | `target/surefire-reports`       |
-| End-to-end tests  | 24 scenarios, each a real HTTP call to the app  | `target/failsafe-reports`       |
-| Coverage (JaCoCo) | All tests: 93% of instructions, 80% of branches | `target/site/jacoco/index.html` |
-| Checkstyle        | Main and test code, `checkstyle_rules.xml`      | `target/checkstyle-result.xml`  |
-
-**Unit tests** check each part on its own, with small inputs whose expected values are easy to verify by hand:
-
-- the review steps: FFMCAP from the right dates, ranking and buffer selection with ties, capping in rounds and the
-  rounding of weights;
-- the data checks: the errors and warnings in [Data validation](docs/data-validation.md);
-- the API: request validation, status codes, error responses and mapping;
-- the CSV reader (separators, BOM, line endings, broken files) and the review store.
-
-**End-to-end tests** start the application, upload one set of CSV files from
-[src/test/resources/e2e](src/test/resources/e2e) and check the HTTP response and the stored report, audit record and
-trace. Each scenario is a case that can happen with real input:
-
-| Area                       | Scenarios             | Examples                                            |
-|----------------------------|-----------------------|-----------------------------------------------------|
-| Assignment data            | 1                     | Q3 2026: joiner 177, leaver 103, 155 and 205 at 18% |
-| Selection and buffer       | 2, 16 to 21           | All 20 members leave, buffer seats, ties            |
-| Weighting and capping      | 3, 14, 22             | Capping over several rounds, no capping             |
-| Data changes between dates | 4, 11, 12, 13, 15, 23 | Delisting, IPO, member without data                 |
-| Data errors (`422`)        | 5, 6, 7, 9, 10, 24    | Free float in percent, conflicting rows             |
-| File format                | 8                     | Comma separator, BOM, Windows line endings          |
 
 ## Run a review
 
@@ -105,14 +90,34 @@ For the assignment files the review returns `201` with this report (shortened):
   "reviewId": "50114c22-846f-454a-a347-3f8af29ba35c",
   "status": "SUCCESS_WITH_WARNINGS",
   "constituents": [
-    { "securityId": 155, "weight": 18.0000, "cappingFactor": 0.5653526015 },
-    { "securityId": 205, "weight": 18.0000, "cappingFactor": 0.6117362279 },
-    { "securityId": 63, "weight": 14.2591, "cappingFactor": 1.0000000000 },
+    {
+      "securityId": 155,
+      "weight": 18.0000,
+      "cappingFactor": 0.5653526015
+    },
+    {
+      "securityId": 205,
+      "weight": 18.0000,
+      "cappingFactor": 0.6117362279
+    },
+    {
+      "securityId": 63,
+      "weight": 14.2591,
+      "cappingFactor": 1.0000000000
+    },
     ...
-    { "securityId": 81, "weight": 0.8503, "cappingFactor": 1.0000000000 }
+    {
+      "securityId": 81,
+      "weight": 0.8503,
+      "cappingFactor": 1.0000000000
+    }
   ],
-  "joiners": [177],
-  "leavers": [103],
+  "joiners": [
+    177
+  ],
+  "leavers": [
+    103
+  ],
   "findings": [
     {
       "code": "MISSING_REVIEW_DATA",
@@ -188,6 +193,38 @@ To see why a review has warnings or failed, read its `findings` field from the /
 them per security ID.
 
 Reviews are kept in memory and are lost when the application stops.
+
+## Tests
+
+`./mvnw verify` runs everything below and fails the build on any failed test or Checkstyle violation.
+
+| Check                 | What it covers                                  | Report                          |
+|-----------------------|-------------------------------------------------|---------------------------------|
+| Unit tests (208)      | 18 test classes, one part at a time             | `target/surefire-reports`       |
+| End-to-end tests (24) | 24 scenarios, each a real HTTP call to the app  | `target/failsafe-reports`       |
+| Coverage (JaCoCo)     | All tests: 93% of instructions, 80% of branches | `target/site/jacoco/index.html` |
+| Checkstyle            | Main and test code, `checkstyle_rules.xml`      | `target/checkstyle-result.xml`  |
+
+**Unit tests (208)** check each part on its own, with small inputs whose expected values are easy to verify by hand:
+
+- the review steps: FFMCAP from the right dates, ranking and buffer selection with ties, capping in rounds and the
+  rounding of weights;
+- the data checks: the errors and warnings in [Data validation](docs/data-validation.md);
+- the API: request validation, status codes, error responses and mapping;
+- the CSV reader (separators, BOM, line endings, broken files) and the review store.
+
+**End-to-end tests (24)** start the application, upload one set of CSV files from
+[src/test/resources/e2e](src/test/resources/e2e) and check the HTTP response and the stored report, audit record and
+trace. Each scenario is a case that can happen with real input:
+
+| Area                       | Scenarios             | Examples                                            |
+|----------------------------|-----------------------|-----------------------------------------------------|
+| Assignment data            | 1                     | Q3 2026: joiner 177, leaver 103, 155 and 205 at 18% |
+| Selection and buffer       | 2, 16 to 21           | All 20 members leave, buffer seats, ties            |
+| Weighting and capping      | 3, 14, 22             | Capping over several rounds, no capping             |
+| Data changes between dates | 4, 11, 12, 13, 15, 23 | Delisting, IPO, member without data                 |
+| Data errors (`422`)        | 5, 6, 7, 9, 10, 24    | Free float in percent, conflicting rows             |
+| File format                | 8                     | Comma separator, BOM, Windows line endings          |
 
 ## Documentation
 
