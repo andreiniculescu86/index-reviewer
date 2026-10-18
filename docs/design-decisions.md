@@ -1,10 +1,18 @@
 # Assumptions and design decisions
 
-The assignment says: *"The exact implementation details are intentionally left open. You are expected to make
-reasonable assumptions where necessary, document them clearly, and justify their design decisions."*
-
-This page lists those choices. Rules the assignment or the rulebook fix (FFMCAP formula, dates, 20 components, ranks
+Rules the assignment or the rulebook fix (FFMCAP formula, dates, 20 components, ranks
 1 to 18 direct, 18% cap, proportional redistribution) are in [Methodology](methodology.md), not here.
+
+## Contents
+
+- [What the assignment leaves open](#what-the-assignment-leaves-open)
+- [Assumptions](#assumptions)
+  - [Selection](#selection): A1
+  - [Weighting](#weighting): A2 to A5
+  - [Report](#report): A6, A7
+  - [Data](#data): A8 to A10
+  - [Ambiguous cases](#ambiguous-cases): A11 to A14
+- [Design decisions](#design-decisions): D1 to D9
 
 ## What the assignment leaves open
 
@@ -22,12 +30,12 @@ This page lists those choices. Rules the assignment or the rulebook fix (FFMCAP 
 
 ## Assumptions
 
-**Selection**
+### Selection
 
 - **A1. Buffer applied.** Ranks 19 to 22 go to current components first, then to newcomers by rank (rulebook
   5.12.3.2). *Why:* the assignment allows it, and it is how SIX reviews the SMI: it keeps the index stable.
 
-**Weighting**
+### Weighting
 
 - **A2. Capping in rounds.** Cap every weight above 18%, share the cut weight among the others, repeat until none is
   above. *Why:* sharing can push another component above the cap; the example needs one round, real data may not.
@@ -37,14 +45,14 @@ This page lists those choices. Rules the assignment or the rulebook fix (FFMCAP 
 - **A5. Rounding leftover to the last constituent.** The few 0.0001 that rounding misses go to the lowest-ranked
   constituent, so weights sum to exactly 100. *Why:* capped weights stay at exactly 18%, and the result is repeatable.
 
-**Report**
+### Report
 
 - **A6. Weighting factors** are the final `weight` and the `cappingFactor` of each constituent. *Why:* the assignment
   does not define the term; the report shows both the result and how much each component was cut.
 - **A7. Review status** follows the most severe finding: `SUCCESS` (none), `SUCCESS_WITH_WARNINGS`, `FAILED` (a data
   error), `ERROR` (unexpected failure). *Why:* the term is not defined; the findings in the report explain the status.
 
-**Data**
+### Data
 
 - **A8. Missing data excludes the security with a warning.** No cut-off price or no review-date row (security 166 in
   Q3 2026). *Why:* the rulebook does not stop a review for missing data (7.1); listings and delistings cause it.
@@ -54,7 +62,7 @@ This page lists those choices. Rules the assignment or the rulebook fix (FFMCAP 
 - **A10. Identical duplicate rows count once.** *Why:* the assignment universe lists 204 securities twice; identical
   rows cannot change the result.
 
-**Ambiguous cases**
+### Ambiguous cases
 
 - **A11. Ties.** Equal FFMCAP ranks current components first, then by composition order, then by lower id, with a
   `SELECTION_TIE` warning when it decides a seat. *Why:* no rule in the rulebook; its stability principle (1.3).
