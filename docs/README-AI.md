@@ -2,6 +2,16 @@
 
 This file explains where the project's AI guidance lives. Read the linked files for current rules and settings.
 
+## Contents
+
+- [Standing rules](#standing-rules)
+- [Skills](#skills)
+- [Conditional references](#conditional-references)
+- [Agents](#agents)
+- [Project guides](#project-guides)
+- [Configuration and tools](#configuration-and-tools)
+- [How the pieces connect](#how-the-pieces-connect)
+
 ## Standing rules
 
 - [CLAUDE.md](../CLAUDE.md): project-wide permissions, communication preferences and task routing.

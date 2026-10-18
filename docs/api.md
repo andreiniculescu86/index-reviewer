@@ -17,6 +17,110 @@ All endpoints return JSON. Numbers such as weights and capping factors are JSON 
 | [`GET /v1/reviews/{reviewId}/trace`](#get-the-trace)                      | How the review reached its result    |
 | [`GET /v1/reviews/{reviewId}/securities/{securityId}`](#get-one-security) | Trace and findings of one security   |
 
+## Contents
+
+- [Review status and HTTP status](#review-status-and-http-status)
+  - [Review statuses](#review-statuses)
+  - [Running a review: `POST /v1/reviews`](#running-a-review-post-v1reviews)
+  - [Reading a stored review: `GET` endpoints](#reading-a-stored-review-get-endpoints)
+  - [Examples](#examples)
+- [Run a review](#run-a-review)
+  - [ConfigRequest](#configrequest)
+  - [ReviewResponse](#reviewresponse)
+  - [ConstituentResponse](#constituentresponse)
+  - [FindingResponse](#findingresponse)
+- [List reviews](#list-reviews)
+- [Get a review](#get-a-review)
+- [Get the audit record](#get-the-audit-record)
+  - [ReviewAuditResponse](#reviewauditresponse)
+  - [IndexRulesResponse](#indexrulesresponse)
+- [Get the trace](#get-the-trace)
+  - [ReviewTraceResponse](#reviewtraceresponse)
+  - [SecurityTraceResponse](#securitytraceresponse)
+- [Get one security](#get-one-security)
+- [ErrorResponse](#errorresponse)
+  - [Error](#error)
+
+## Review status and HTTP status
+
+Every response has up to two statuses, and they answer different questions:
+
+| Status                      | Question it answers           | Values                                             |
+|-----------------------------|-------------------------------|----------------------------------------------------|
+| HTTP status code            | Did the **request** work?     | `201` `200` `400` `404` `413` `422` `500`          |
+| Review `status` in the body | Did the **calculation** work? | `SUCCESS` `SUCCESS_WITH_WARNINGS` `FAILED` `ERROR` |
+
+A review `status` only exists when a review was run and stored. A request that is rejected before the review starts
+returns an [ErrorResponse](#errorresponse) without a review `status`.
+
+### Review statuses
+
+| Review `status`         | Meaning                                  | Typical cause                                   |
+|-------------------------|------------------------------------------|-------------------------------------------------|
+| `SUCCESS`               | Index calculated, no data problems       | Clean input files                               |
+| `SUCCESS_WITH_WARNINGS` | Index calculated, some data handled      | A security without review-date data left out    |
+| `FAILED`                | Index cannot be calculated correctly     | Bad, inconsistent or incomplete data, see below |
+| `ERROR`                 | The application failed while calculating | A bug or system problem, never the data         |
+
+A review is `FAILED` when the data cannot give a correct index, for example:
+
+- a file has no rows for the cut-off date or the review date;
+- the current composition does not have 20 different securities;
+- a price or number of shares is 0 or below, or a free float is outside 0 to 1 (such as `85` sent as a percentage);
+- one security has two different rows for the same date;
+- fewer than 20 securities have usable data;
+- the final selection or weights fail their checks.
+
+The findings in the report say which of these happened. Do not confuse the review `status` `ERROR` with the finding
+`severity` `ERROR`: a finding with severity `ERROR` is one data problem, and it makes the review `FAILED`, not
+`ERROR`.
+
+### Running a review: `POST /v1/reviews`
+
+| Situation                                  | HTTP  | Body                                         | Stored     |
+|--------------------------------------------|-------|----------------------------------------------|------------|
+| Index calculated, with or without warnings | `201` | Report, `SUCCESS` or `SUCCESS_WITH_WARNINGS` | Yes        |
+| Data cannot give a correct index           | `422` | Report, `FAILED`, findings say why           | Yes        |
+| Application failed while calculating       | `500` | ErrorResponse `INTERNAL_ERROR`, no report    | As `ERROR` |
+| Missing file, bad value, wrong date order  | `400` | ErrorResponse                                | No         |
+| File above the upload size limit           | `413` | ErrorResponse                                | No         |
+| Index without configured rules             | `422` | ErrorResponse `INDEX_NOT_CONFIGURED`         | No         |
+
+A `500` response does not contain the review id. The review stored with status `ERROR` can be found with
+`GET /v1/reviews`.
+
+### Reading a stored review: `GET` endpoints
+
+| Situation               | HTTP  | Body                                             |
+|-------------------------|-------|--------------------------------------------------|
+| The review exists       | `200` | Report with its status, also `FAILED` or `ERROR` |
+| Unknown review id       | `404` | ErrorResponse `NOT_FOUND`                        |
+| Review id is not a UUID | `400` | ErrorResponse `INVALID_VALUE`                    |
+
+Reading always returns `200` for a stored review: the read worked, even if the review did not. A client must check the
+report's `status` and `findings` to know whether the review succeeded.
+
+### Examples
+
+Free float `85` instead of `0.85` for security 108:
+
+```text
+POST /v1/reviews           -> 422  "status": "FAILED", finding INVALID_VALUE (ERROR), security 108, field freeFloat
+GET  /v1/reviews/{id}      -> 200  "status": "FAILED", same finding
+```
+
+The assignment files, where security 166 has no review-date row:
+
+```text
+POST /v1/reviews           -> 201  "status": "SUCCESS_WITH_WARNINGS", finding MISSING_REVIEW_DATA (WARNING), 166
+```
+
+No `composition` file in the request:
+
+```text
+POST /v1/reviews           -> 400  ErrorResponse MISSING_FILE, field composition; nothing stored
+```
+
 ## Run a review
 
 `POST /v1/reviews`, `multipart/form-data`. Runs the review and stores it, also when it fails on data errors.
@@ -89,20 +193,20 @@ filters are optional and combined.
 | `cutoffDate`    | date (`yyyy-MM-dd`) | Only reviews with this cut-off date    |
 | `reviewDate`    | date (`yyyy-MM-dd`) | Only reviews with this review date     |
 
-| HTTP  | Body                                      | When                                    |
-|-------|-------------------------------------------|-----------------------------------------|
-| `200` | list of [ReviewResponse](#reviewresponse) | Always; the list can be empty           |
-| `400` | [ErrorResponse](#errorresponse)           | Unknown index or a date that is not ISO |
+| HTTP  | Body                                      | When                                                        |
+|-------|-------------------------------------------|-------------------------------------------------------------|
+| `200` | list of [ReviewResponse](#reviewresponse) | Always, also for `FAILED` and `ERROR` reviews; can be empty |
+| `400` | [ErrorResponse](#errorresponse)           | Unknown index or a date that is not ISO                     |
 
 ## Get a review
 
 `GET /v1/reviews/{reviewId}`. Returns the report of one stored review, derived again from its audit record and trace.
 
-| HTTP  | Body                              | When                        |
-|-------|-----------------------------------|-----------------------------|
-| `200` | [ReviewResponse](#reviewresponse) | The review exists           |
-| `400` | [ErrorResponse](#errorresponse)   | The review id is not a UUID |
-| `404` | [ErrorResponse](#errorresponse)   | Unknown review id           |
+| HTTP  | Body                              | When                                                             |
+|-------|-----------------------------------|------------------------------------------------------------------|
+| `200` | [ReviewResponse](#reviewresponse) | The review exists, whatever its status, also `FAILED` or `ERROR` |
+| `400` | [ErrorResponse](#errorresponse)   | The review id is not a UUID                                      |
+| `404` | [ErrorResponse](#errorresponse)   | Unknown review id                                                |
 
 ## Get the audit record
 

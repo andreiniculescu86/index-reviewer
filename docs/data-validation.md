@@ -9,15 +9,26 @@ The checks run in `ReviewDataValidator` (whole input) and `SecurityRecordValidat
 a finding with a code, a severity, the security id, the field and a message. The findings are stored in the
 [trace](traceability-and-auditability.md#findings).
 
+## Contents
+
+- [Severities](#severities)
+- [Checks](#checks)
+- [Handled without a finding](#handled-without-a-finding)
+- [Assignment data](#assignment-data)
+- [Request errors](#request-errors)
+
 ## Severities
 
 The full list of finding codes is in [Traceability](traceability-and-auditability.md#finding-codes).
 
 | Severity  | Meaning                                     | Effect                                                   |
 |-----------|---------------------------------------------|----------------------------------------------------------|
-| `ERROR`   | The data would make the result wrong        | Review stops, status `FAILED`, HTTP 422 with empty lists |
+| `ERROR`   | The data would make the result wrong        | Review stops with status `FAILED`; `POST` returns `422`  |
 | `WARNING` | The data is handled the same way every time | Security excluded or duplicate counted once; review runs |
 | `INFO`    | Data that was not needed                    | None                                                     |
+
+A finding with severity `ERROR` makes the review `FAILED`. It is not the review status `ERROR`, which only means the
+application itself failed. See [Review status and HTTP status](api.md#review-status-and-http-status).
 
 The review runs in stages and stops after the first stage with an error. Within a stage every row is checked, so
 all errors of that stage are reported, not only the first one. For example, a composition with the wrong size stops

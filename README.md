@@ -28,12 +28,19 @@ In a production project, some of this information would be organized and maintai
 - [Requirements](#requirements)
 - [Build and run](#build-and-run)
 - [Run a review](#run-a-review)
-    - [Expected result](#expected-result)
-    - [Index, dates and separator](#index-dates-and-separator)
-    - [Response fields](#response-fields)
+  - [Expected result](#expected-result)
+  - [Index, dates and separator](#index-dates-and-separator)
+  - [Response fields](#response-fields)
 - [Endpoints](#endpoints)
 - [Tests](#tests)
 - [Documentation](#documentation)
+  - [Methodology](#methodology)
+  - [Data validation](#data-validation)
+  - [Traceability and audit](#traceability-and-audit)
+  - [Assumptions and design decisions](#assumptions-and-design-decisions)
+  - [API reference](#api-reference)
+  - [Architecture](#architecture)
+  - [AI setup](#ai-setup)
 - [Next steps](#next-steps)
 
 ## Requirements
@@ -160,8 +167,18 @@ The response is the review report:
 | `leavers`      | Ids that leave the index                                                                                                                    |
 | `findings`     | Errors and warnings found in the data, which explain the `status`, see [finding codes](docs/traceability-and-auditability.md#finding-codes) |
 
-HTTP status: `201` when the review ran, `422` when it failed on data errors (status `FAILED`, the findings, empty
-composition lists), `400` when a file or a value of the request is invalid.
+The HTTP status code says whether the request worked; the report's `status` says whether the index calculation
+worked:
+
+| Situation when running a review                 | HTTP  | Report `status`                      |
+|-------------------------------------------------|-------|--------------------------------------|
+| Index calculated                                | `201` | `SUCCESS` or `SUCCESS_WITH_WARNINGS` |
+| Bad, inconsistent or incomplete data            | `422` | `FAILED`; the findings say why       |
+| The application itself failed                   | `500` | no report; stored as `ERROR`         |
+| Request invalid: missing file, bad value, dates | `400` | no report; nothing stored            |
+
+Reading a stored review with `GET` always returns `200`, also for a `FAILED` or `ERROR` review. Details and examples
+are in [Review status and HTTP status](docs/api.md#review-status-and-http-status).
 
 ## Endpoints
 
@@ -227,15 +244,38 @@ trace. Each scenario is a case that can happen with real input:
 
 ## Documentation
 
-- [Methodology](docs/methodology.md): dates, FFMCAP, ranking, buffer, capping and the assumptions made.
-- [Data validation](docs/data-validation.md): data checks, errors and warnings.
-- [Traceability and audit](docs/traceability-and-auditability.md): what each review stores and how to read it.
-- [Assumptions and design decisions](docs/design-decisions.md): every assumption made where the assignment is open,
-  and the technical decisions with their alternatives.
-- [API reference](docs/api.md): endpoints, request parts, response models and HTTP statuses.
-- [Architecture](docs/architecture.md): what the service does, its external interactions and the main review flows.
-- [AI setup](docs/README-AI.md): the Claude rules, skills and agents used to build the project. They are kept on
-  purpose, to show how the AI tools were set up.
+### Methodology
+
+- [Methodology (`methodology.md`)](docs/methodology.md): dates, FFMCAP, ranking, buffer, capping and the assumptions
+  made.
+
+### Data validation
+
+- [Data validation (`data-validation.md`)](docs/data-validation.md): data checks, errors and warnings.
+
+### Traceability and audit
+
+- [Traceability and audit (`traceability-and-auditability.md`)](docs/traceability-and-auditability.md): what each review
+  stores and how to read it.
+
+### Assumptions and design decisions
+
+- [Assumptions and design decisions (`design-decisions.md`)](docs/design-decisions.md): every assumption made where the
+  assignment is open, and the technical decisions with their alternatives.
+
+### API reference
+
+- [API reference (`api.md`)](docs/api.md): endpoints, request parts, response models and HTTP statuses.
+
+### Architecture
+
+- [Architecture (`architecture.md`)](docs/architecture.md): what the service does, its external interactions and the
+  main review flows.
+
+### AI setup
+
+- [AI setup (`README-AI.md`)](docs/README-AI.md): the Claude rules, skills and agents used to build the project. They
+  are kept on purpose, to show how the AI tools were set up.
 
 ## Next steps
 

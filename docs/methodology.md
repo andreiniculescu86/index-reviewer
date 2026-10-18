@@ -6,6 +6,20 @@ How the application reviews the SMI. It follows the assignment and the SIX Swiss
 
 See also [Data validation](data-validation.md) and [Traceability and audit](traceability-and-auditability.md).
 
+## Contents
+
+- [Configuration](#configuration)
+- [Dates](#dates)
+- [Eligibility](#eligibility)
+- [FFMCAP](#ffmcap)
+- [Ranking](#ranking)
+- [Selection with the buffer](#selection-with-the-buffer)
+  - [Selection decisions](#selection-decisions)
+- [Weighting and capping](#weighting-and-capping)
+  - [Assumptions](#assumptions)
+- [Joiners and leavers](#joiners-and-leavers)
+- [Not implemented](#not-implemented)
+
 ## Configuration
 
 The index rules are in [application.yml](../src/main/resources/application.yml).

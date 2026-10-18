@@ -15,6 +15,19 @@ The design follows four goals:
 | Bad data never passes silently | Each data problem stops the review as an error or is recorded as a warning |
 | New indices without rework     | Each index has its own reviewer behind one interface, reusing the steps    |
 
+## Contents
+
+- [Context](#context)
+- [Building blocks](#building-blocks)
+- [Flow 1: run a review](#flow-1-run-a-review)
+  - [Outcomes](#outcomes)
+- [Flow 2: read a stored review](#flow-2-read-a-stored-review)
+- [Stored data](#stored-data)
+- [Cross-cutting concerns](#cross-cutting-concerns)
+- [Extension points](#extension-points)
+- [Constraints](#constraints)
+- [Further reading](#further-reading)
+
 ## Context
 
 ```text
@@ -124,6 +137,8 @@ failed review still shows everything that was calculated before the error. Warni
 
 A failed review has empty constituent, joiner and leaver lists. A data error is a review outcome, not a broken
 request: the request was valid, the data was not. That is why it is stored and traceable like a successful review.
+`ERROR` is never caused by data; it means the application itself failed. Reading any stored review returns `200`. See
+[Review status and HTTP status](api.md#review-status-and-http-status).
 
 ## Flow 2: read a stored review
 
@@ -136,6 +151,9 @@ GET /v1/reviews/{reviewId}/securities/{securityId} ---> trace and findings of on
 
 unknown review id ---> 404
 ```
+
+A stored review is returned with `200` whatever its status, also when it is `FAILED` or `ERROR`. The HTTP status
+only says that the read worked; the report's `status` and `findings` say whether the review worked.
 
 ## Stored data
 

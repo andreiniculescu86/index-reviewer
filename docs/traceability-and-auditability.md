@@ -17,6 +17,16 @@ Stored data is never changed. Failed reviews and reviews with an unexpected erro
 **Example review on this page:** the assignment files, with the cut-off price of security 10 changed to `-2080`. It
 failed after the FFMCAP step. Id: `51b43dce-e920-4416-80f8-50f846df339a`.
 
+## Contents
+
+- [Audit part](#audit-part)
+- [Trace part](#trace-part)
+  - [Security trace](#security-trace)
+  - [Findings](#findings)
+    - [Finding codes](#finding-codes)
+- [Review status](#review-status)
+- [Limits](#limits)
+
 ## Audit part
 
 `GET /v1/reviews/{reviewId}/audit`
@@ -176,15 +186,18 @@ Which data check gives which code is in [Data validation](data-validation.md#che
 
 ## Review status
 
-| Status                  | Meaning                                                              | HTTP of `POST` |
-|-------------------------|----------------------------------------------------------------------|----------------|
-| `SUCCESS`               | No errors, no warnings                                               | 201            |
-| `SUCCESS_WITH_WARNINGS` | Warnings only; the result is correct                                 | 201            |
-| `FAILED`                | At least one `ERROR` finding; the review stopped                     | 422            |
-| `ERROR`                 | Unexpected application error; the trace shows how far the review got | 500            |
+HTTP status when running (`POST`) and when reading the stored review (`GET`):
 
-`INFO` findings do not change the status. `FAILED` and `ERROR` reviews have empty constituent, joiner and leaver
-lists in their report.
+| Status                  | Meaning                                                          | `POST` | `GET` |
+|-------------------------|------------------------------------------------------------------|--------|-------|
+| `SUCCESS`               | No errors, no warnings                                           | 201    | 200   |
+| `SUCCESS_WITH_WARNINGS` | Warnings only; the result is correct                             | 201    | 200   |
+| `FAILED`                | Bad data: at least one `ERROR` finding; the review stopped       | 422    | 200   |
+| `ERROR`                 | The application failed, not the data; trace shows how far it got | 500    | 200   |
+
+A stored review is read with `200` whatever its status; see [Review status and HTTP
+status](api.md#review-status-and-http-status). `INFO` findings do not change the status. `FAILED` and `ERROR` reviews
+have empty constituent, joiner and leaver lists in their report.
 
 The example review is `FAILED`: one error (security 10) and one warning (security 166).
 
