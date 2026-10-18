@@ -93,12 +93,36 @@ To see why a review has warnings or failed, read its `findings`; the trace also 
 
 Reviews are kept in memory and are lost when the application stops.
 
+## Tests
+
+`mvn verify` runs the unit tests and the end-to-end tests in `ReviewEndToEndIT`. Each end-to-end test starts the
+application, uploads one set of files from [src/test/resources/e2e](src/test/resources/e2e) and checks the HTTP
+response, the stored report, audit and trace.
+
+| Folder     | Scenario                                                                  | Expected                   |
+|------------|---------------------------------------------------------------------------|----------------------------|
+| scenario1  | Assignment files                                                          | Q3 2026 result             |
+| scenario2  | 4 current components in the buffer compete for 2 seats                    | 2 kept, 2 leave            |
+| scenario3  | Few large securities, capping needs 2 rounds, rounding leftover           | Capped weights             |
+| scenario4  | Delisted component, component without review data, IPO after cut-off      | Leavers, joiners           |
+| scenario5  | Free float sent in percent (85 instead of 0.85)                           | 422 `FAILED`               |
+| scenario6  | Rows loaded twice, one with a changed value                               | 422 `FAILED`               |
+| scenario7  | Request dates not in the files                                            | 422 `FAILED`               |
+| scenario8  | Comma separated export with BOM, CRLF and spaces                          | 400, then 201 with `,`     |
+| scenario9  | Truncated universe, fewer than 20 valid securities                        | 422 `FAILED`               |
+| scenario10 | Composition with one id twice                                             | 422 `FAILED`               |
+| scenario11 | Shares and free float change between the dates; review rows carry a price | Values from the right date |
+| scenario12 | Equal FFMCAP written differently (50 vs 50.00) at the last buffer seat    | Tie order, `SELECTION_TIE` |
+| scenario13 | FFMCAPs that differ only after the 15th digit decide rank 18              | Exact ranking              |
+| scenario14 | Very concentrated index, capping over 3 rounds, 4 capped                  | Capped weights             |
+| scenario15 | Security data for the whole market, incl. larger and broken non-SPI rows  | Ignored, `SUCCESS`         |
+
 ## Documentation
 
 - [Methodology](docs/methodology.md): dates, FFMCAP, ranking, buffer, capping and the assumptions made.
 - [Data validation](docs/data-validation.md): data checks, errors and warnings.
 - [Traceability and audit](docs/traceability-and-auditability.md): what each review stores and how to read it.
-- [Development](docs/development.md): build checks and code quality tools.
+- [Design decisions](docs/design-decisions.md): technical choices, the alternatives and why.
 - [AI setup](docs/README-AI.md): the Claude rules, skills and agents used to build the project. They are kept on
   purpose, to show how the AI tools were set up.
 

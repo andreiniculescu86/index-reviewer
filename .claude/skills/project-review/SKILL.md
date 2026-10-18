@@ -28,7 +28,7 @@ Load relevant criteria only:
   [MapStruct preferences](../implementation/references/mapstruct.md).
 - Models, contracts, or boundaries: [architecture rules](../implementation/references/architecture.md) and affected
   project decisions.
-- Tests or coverage gaps: testing; docs/testing.md when actual suite setup or coverage matters.
+- Tests or coverage gaps: testing; "Tests" in README.md when actual suite setup or coverage matters.
 - Configuration, integrations, failures, or state: relevant [runtime
   safety](../implementation/references/runtime-safety.md) sections.
 - Selected Spring behavior: [Spring guidance](../implementation/references/spring-boot.md).

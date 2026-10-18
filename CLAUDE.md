@@ -50,8 +50,8 @@ points select detailed references.
 | Review a diff, prepare a requested commit or draft PR/MR text | project-review |
 | Write/update READMEs, project Markdown or architecture diagrams | documentation |
 
-For build gates or tool setup, read the relevant part of docs/development.md; use testing and code-quality-checks
-for applicable results from the same run. Use pom.xml for versions. Consult docs/README.md for file locations.
+For build gates or tool setup, read "Build and run" in README.md; use testing and code-quality-checks for applicable
+results from the same run. Use pom.xml for versions. Consult docs/README-AI.md for file locations.
 For uncertain dependency APIs outside an active skill, use the implementation library-research reference.
 
 ## Tools and coordination

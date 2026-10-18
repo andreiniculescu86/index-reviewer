@@ -3,7 +3,7 @@ name: testing
 description: Use when writing, running, debugging, or reviewing tests, fixtures, regression coverage, and test reports.
 ---
 
-Read pom.xml for the selected test stack and docs/testing.md for actual suites, fixtures, services and commands.
+Read pom.xml for the selected test stack and "Tests" in README.md for actual suites, fixtures and commands.
 Establish whether the task is writing, execution, debugging or review; review mode supplies criteria, not permission to
 edit tests. Do not infer configured coverage from a naming convention or an empty build.
 
@@ -44,12 +44,12 @@ readability, and avoid static mutable application-service fields in shared setup
 
 ## Execution and evidence
 
-Use ./mvnw and the actual commands in docs/testing.md. Run affected suites/modules first; broaden checks to match the
-scope. For combined build gates, read docs/development.md and share evidence with code-quality-checks. Inspect
+Use ./mvnw and the actual commands in README.md. Run affected suites/modules first; broaden checks to match the
+scope. For combined build gates, read README.md and share evidence with code-quality-checks. Inspect
 reports to establish which tests ran, failed or were skipped. Distinguish application failures from Docker, service or
 environment blockers. Do not silently substitute test infrastructure. Report commands, actual results, coverage limits
 and blocked checks under CLAUDE.md's evidence and permission rules.
 
 Use code-quality-checks for test formatting/static analysis, documentation when test setup or coverage changes, and
 project-review for the final changed tests. Document actual images, Docker prerequisites, connection setup and execution
-commands in docs/testing.md when integration infrastructure is adopted.
+commands in README.md when integration infrastructure is adopted.

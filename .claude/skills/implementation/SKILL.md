@@ -28,7 +28,7 @@ For bugs, establish the cause and reproduce the symptom when feasible. Distingui
 State uncertainty when the cause remains unknown. Use testing for meaningful regression coverage when feasible.
 
 Complete the scoped change. Coordinate applicable tests through testing and formatting/static analysis through
-code-quality-checks. Read docs/development.md for configured build checks. A combined build may supply both kinds of
+code-quality-checks. Read "Build and run" in README.md for build checks. A combined build may supply both kinds of
 evidence; run it once and assess each result. Instruction-only edits need instruction/link validation, not an empty
 Maven build as behavioral evidence.
 

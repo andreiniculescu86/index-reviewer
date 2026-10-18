@@ -3,19 +3,20 @@ name: documentation
 description: Use when writing or updating READMEs, project Markdown, or high-level application architecture diagrams.
 ---
 
-Inspect affected code, configuration, build, and existing docs. After a change, assess whether README.md, docs/README.md,
-and relevant Markdown need updates. Use known context for that decision; read only affected files. Update stale or
-incomplete content in the same scoped change. Preserve accurate unrelated text.
+Inspect affected code, configuration, build, and existing docs. After a change, assess whether README.md,
+docs/README-AI.md, and relevant Markdown need updates. Use known context for that decision; read only affected
+files. Update stale or incomplete content in the same scoped change. Preserve accurate unrelated text.
 
 ## Where updates belong
 
 - README.md: project entry point, setup, usage, and working commands.
-- docs/README.md: navigation map for standing rules, skills, references, agents, guides, configuration, and tools. Update
-  links and purposes after moves/additions/removals. Describe where guidance lives, not its changing rule content.
+- docs/README-AI.md: navigation map for standing rules, skills, references, agents, guides, configuration, and tools.
+  Update links and purposes after moves/additions/removals. Describe where guidance lives, not its changing rule
+  content.
 - docs/architecture.md: high-level service purpose, external interactions, and main service flows. For architecture
   updates, follow [architecture scope](references/architecture.md).
-- docs/testing.md: this application's test suites, fixtures, services, setup, commands, and coverage limits.
-- docs/development.md: configured build gates, quality profiles, scripts, overrides, and local tool setup.
+- README.md "Tests": this application's test suites, fixtures, services, setup, commands, and coverage limits.
+- README.md "Build and run": configured build gates, quality profiles, overrides, and local tool setup.
 - testing skill: reusable test-writing, execution, and evidence rules.
 - Skill references: shared policies and conditional procedures such as quality checks. Keep each rule in one place.
 - CLAUDE.md and project-review: standing Git rules and requested commit/PR/MR procedures, respectively.
