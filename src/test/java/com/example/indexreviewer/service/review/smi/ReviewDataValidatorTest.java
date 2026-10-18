@@ -1,4 +1,4 @@
-package com.example.indexreviewer.service.review;
+package com.example.indexreviewer.service.review.smi;
 
 import com.example.indexreviewer.model.Candidate;
 import com.example.indexreviewer.model.IndexType;
@@ -7,7 +7,6 @@ import com.example.indexreviewer.model.Security;
 import com.example.indexreviewer.model.audit.IndexRules;
 import com.example.indexreviewer.model.trace.Finding;
 import com.example.indexreviewer.model.trace.FindingCode;
-import com.example.indexreviewer.service.review.smi.ReviewDataValidator;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;

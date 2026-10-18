@@ -1,11 +1,10 @@
-package com.example.indexreviewer.service.review;
+package com.example.indexreviewer.service.review.smi;
 
 import com.example.indexreviewer.model.Candidate;
 import com.example.indexreviewer.model.WeightResult;
 import com.example.indexreviewer.model.report.Constituent;
 import com.example.indexreviewer.model.trace.FindingCode;
 import com.example.indexreviewer.model.trace.WeightTrace;
-import com.example.indexreviewer.service.review.smi.WeightCalculatorStep;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -46,6 +45,21 @@ class WeightCalculatorStepTest {
         assertThat(result.getConstituents()).extracting(Constituent::getCappingFactor)
             .extracting(BigDecimal::scale)
             .containsOnly(4);
+    }
+
+    @Test
+    void calculateWeights_whenWeightEqualsCap_expectNotCapped() {
+        List<Candidate> components = List.of(component(1, "500"), component(2, "300"), component(3, "200"));
+
+        WeightResult result = calculator.calculateWeights(components, HALF);
+
+        assertThat(result.getConstituents()).extracting(Constituent::getWeight)
+            .usingElementComparator(BigDecimal::compareTo)
+            .containsExactly(new BigDecimal("50"), new BigDecimal("30"), new BigDecimal("20"));
+        assertThat(result.getConstituents()).extracting(Constituent::getCappingFactor)
+            .usingElementComparator(BigDecimal::compareTo)
+            .containsOnly(BigDecimal.ONE);
+        assertThat(result.getFindings()).isEmpty();
     }
 
     @Test

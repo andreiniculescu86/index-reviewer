@@ -69,7 +69,7 @@ One entry for every security in the universe and every current component.
 | `freeFloat`         | Free float on the review date                                                           |
 | `ffmcap`            | `price x shares x freeFloat`; empty when not eligible                                   |
 | `rank`              | Rank by FFMCAP, 1 for the largest, see [ranking](methodology.md#ranking)                |
-| `decision`          | [Selection decision](#selection-decisions)                                              |
+| `decision`          | [Selection decision](methodology.md#selection-decisions)                                |
 | `cappingFactor`     | 1 if not capped, below 1 if capped, see [capping](methodology.md#weighting-and-capping) |
 | `weight`            | Final weight in percent, `18.0000` for 18%                                              |
 
@@ -94,19 +94,6 @@ A value is `null` when its step did not run.
 
 `857.4 x 26700000 x 0.8486 = 19426643388`. The free float comes from the review date row; the cut-off row has
 `0.8487`, which is not used. `rank` and `decision` are empty because the review stopped before the selection.
-
-### Selection decisions
-
-See [Selection with the buffer](methodology.md#selection-with-the-buffer).
-
-| Decision                             | Meaning                                   |
-|--------------------------------------|-------------------------------------------|
-| `SELECTED_DIRECT`                    | Rank 1 to 18                              |
-| `SELECTED_BUFFER_EXISTING_COMPONENT` | Rank 19 to 22, already in the index, kept |
-| `SELECTED_BUFFER_NEWCOMER`           | Rank 19 to 22, new, took a free seat      |
-| `NOT_SELECTED_BUFFER`                | Rank 19 to 22, no seat left               |
-| `NOT_SELECTED_BELOW_BUFFER`          | Rank 23 or lower                          |
-| `NOT_ELIGIBLE`                       | No valid FFMCAP; the findings explain why |
 
 **Example:** why is security 166 not eligible?
 `GET /v1/reviews/51b43dce-e920-4416-80f8-50f846df339a/securities/166`:
@@ -146,24 +133,34 @@ See [Selection with the buffer](methodology.md#selection-with-the-buffer).
 
 ### Findings
 
-A finding is one problem found in the data, the selection or the weighting. Data checks are in
-[Data validation](data-validation.md).
+A finding is one problem found in the data, the selection or the weighting. Its severity decides the
+[review status](#review-status):
 
-| Code                                 | Severity | Meaning                                                          |
-|--------------------------------------|----------|------------------------------------------------------------------|
-| `MISSING_DATE`                       | ERROR    | No rows for a required date                                      |
-| `COMPOSITION_SIZE`                   | ERROR    | The current composition does not have 20 securities              |
-| `TOO_FEW_ELIGIBLE`                   | ERROR    | Fewer than 20 securities have a valid FFMCAP                     |
-| `INVALID_VALUE`                      | ERROR    | Price, shares or free float missing, zero, negative or too large |
-| `CONFLICTING_DUPLICATE`              | ERROR    | Two rows for the same security and date differ                   |
-| `SELECTION_SIZE`                     | ERROR    | The selection does not have exactly 20 components                |
-| `INVALID_WEIGHTS`                    | ERROR    | A weight exceeds the cap                                         |
-| `MISSING_CUTOFF_PRICE`               | WARNING  | No price on the cut-off date; not eligible                       |
-| `MISSING_REVIEW_DATA`                | WARNING  | No row on the review date; not eligible                          |
-| `DUPLICATE_ROW`                      | WARNING  | Two identical rows; counted once                                 |
-| `EXISTING_COMPONENT_NOT_IN_UNIVERSE` | WARNING  | A current component is not in the universe; it leaves            |
-| `SELECTION_TIE`                      | WARNING  | A tie decided who is selected                                    |
-| `IGNORED_SECURITIES`                 | INFO     | Rows for securities outside the universe                         |
+| Severity  | Effect                                                    |
+|-----------|-----------------------------------------------------------|
+| `ERROR`   | The review stops with status `FAILED`; no new composition |
+| `WARNING` | The review continues; the problem is handled and recorded |
+| `INFO`    | No effect; for information only                           |
+
+Which data check gives which code is in [Data validation](data-validation.md#checks).
+
+#### Finding codes
+
+| Code                                 | Severity | Meaning                                                                        |
+|--------------------------------------|----------|--------------------------------------------------------------------------------|
+| `MISSING_DATE`                       | ERROR    | The universe or security data has no rows for the cut-off or review date       |
+| `COMPOSITION_SIZE`                   | ERROR    | The current composition does not have 20 different securities                  |
+| `TOO_FEW_ELIGIBLE`                   | ERROR    | Fewer than 20 securities have a valid FFMCAP                                   |
+| `INVALID_VALUE`                      | ERROR    | Price, shares or free float missing, zero, negative, above 1 or too long       |
+| `CONFLICTING_DUPLICATE`              | ERROR    | Two rows for the same security and date have different values                  |
+| `SELECTION_SIZE`                     | ERROR    | The selection did not fill exactly 20 seats                                    |
+| `INVALID_WEIGHTS`                    | ERROR    | A final weight is above the cap                                                |
+| `MISSING_CUTOFF_PRICE`               | WARNING  | No price on the cut-off date; the security is not eligible                     |
+| `MISSING_REVIEW_DATA`                | WARNING  | No row on the review date; the security is not eligible                        |
+| `DUPLICATE_ROW`                      | WARNING  | Two identical rows for the same security and date; counted once                |
+| `EXISTING_COMPONENT_NOT_IN_UNIVERSE` | WARNING  | A current component is not in the universe on the review date; it leaves       |
+| `SELECTION_TIE`                      | WARNING  | Equal FFMCAPs were split into selected and not selected; the tie order decided |
+| `IGNORED_SECURITIES`                 | INFO     | The security data has securities outside the universe; they are not used       |
 
 **Example:** the error that made the example review fail.
 
@@ -179,14 +176,15 @@ A finding is one problem found in the data, the selection or the weighting. Data
 
 ## Review status
 
-| Status                  | Meaning                                                  |
-|-------------------------|----------------------------------------------------------|
-| `SUCCESS`               | No errors, no warnings                                   |
-| `SUCCESS_WITH_WARNINGS` | Warnings only; the result is correct                     |
-| `FAILED`                | At least one error; no result                            |
-| `ERROR`                 | Unexpected error; the trace shows how far the review got |
+| Status                  | Meaning                                                              | HTTP of `POST` |
+|-------------------------|----------------------------------------------------------------------|----------------|
+| `SUCCESS`               | No errors, no warnings                                               | 201            |
+| `SUCCESS_WITH_WARNINGS` | Warnings only; the result is correct                                 | 201            |
+| `FAILED`                | At least one `ERROR` finding; the review stopped                     | 422            |
+| `ERROR`                 | Unexpected application error; the trace shows how far the review got | 500            |
 
-`FAILED` and `ERROR` reviews have empty lists in their report.
+`INFO` findings do not change the status. `FAILED` and `ERROR` reviews have empty constituent, joiner and leaver
+lists in their report.
 
 The example review is `FAILED`: one error (security 10) and one warning (security 166).
 

@@ -303,6 +303,155 @@ class ReviewEndToEndIT {
             .noneMatch(securityId -> securityId > 900);
     }
 
+    @Test
+    void review_whenAllComponentsReplaced_expectAllLeave() {
+        HttpResult result = postReview("scenario16", null);
+
+        assertThat(result.status()).isEqualTo(201);
+        JsonNode report = result.body();
+        assertThat(report.path("status").asString()).isEqualTo("SUCCESS");
+        assertValidIndex(report);
+        assertThat(ids(report.path("joiners")))
+            .containsExactlyElementsOf(IntStream.rangeClosed(101, 120).boxed().toList());
+        assertThat(ids(report.path("leavers")))
+            .containsExactlyElementsOf(IntStream.rangeClosed(501, 520).boxed().toList());
+        JsonNode trace = traceOf(report);
+        assertDecision(trace, 119, 19, "SELECTED_BUFFER_NEWCOMER");
+        assertDecision(trace, 121, 21, "NOT_SELECTED_BUFFER");
+        assertDecision(trace, 501, 23, "NOT_SELECTED_BELOW_BUFFER");
+        assertDecision(trace, 520, 42, "NOT_SELECTED_BELOW_BUFFER");
+    }
+
+    @Test
+    void review_whenNoComponentInBuffer_expectNewcomers() {
+        HttpResult result = postReview("scenario17", null);
+
+        assertThat(result.status()).isEqualTo(201);
+        JsonNode report = result.body();
+        assertThat(report.path("status").asString()).isEqualTo("SUCCESS");
+        assertValidIndex(report);
+        assertThat(ids(report.path("joiners"))).containsExactly(119, 120);
+        assertThat(ids(report.path("leavers"))).containsExactly(124, 125);
+        JsonNode trace = traceOf(report);
+        assertDecision(trace, 119, 19, "SELECTED_BUFFER_NEWCOMER");
+        assertDecision(trace, 120, 20, "SELECTED_BUFFER_NEWCOMER");
+        assertDecision(trace, 121, 21, "NOT_SELECTED_BUFFER");
+        assertDecision(trace, 124, 24, "NOT_SELECTED_BELOW_BUFFER");
+    }
+
+    @Test
+    void review_whenBufferMixed_expectComponentThenNewcomer() {
+        HttpResult result = postReview("scenario18", null);
+
+        assertThat(result.status()).isEqualTo(201);
+        JsonNode report = result.body();
+        assertThat(report.path("status").asString()).isEqualTo("SUCCESS");
+        assertValidIndex(report);
+        assertThat(ids(report.path("joiners"))).containsExactly(119);
+        assertThat(ids(report.path("leavers"))).containsExactly(125);
+        JsonNode trace = traceOf(report);
+        assertDecision(trace, 119, 19, "SELECTED_BUFFER_NEWCOMER");
+        assertDecision(trace, 120, 20, "NOT_SELECTED_BUFFER");
+        assertDecision(trace, 121, 21, "SELECTED_BUFFER_EXISTING_COMPONENT");
+        assertDecision(trace, 122, 22, "NOT_SELECTED_BUFFER");
+    }
+
+    @Test
+    void review_whenExactly20Eligible_expectAllSelected() {
+        HttpResult result = postReview("scenario19", null);
+
+        assertThat(result.status()).isEqualTo(201);
+        JsonNode report = result.body();
+        assertThat(report.path("status").asString()).isEqualTo("SUCCESS");
+        assertValidIndex(report);
+        assertThat(ids(report.path("constituents")))
+            .containsExactlyElementsOf(IntStream.rangeClosed(101, 120).boxed().toList());
+        assertThat(ids(report.path("joiners"))).isEmpty();
+        assertThat(ids(report.path("leavers"))).isEmpty();
+        JsonNode trace = traceOf(report);
+        assertThat(trace.path("securities").size()).isEqualTo(20);
+        assertDecision(trace, 120, 20, "SELECTED_BUFFER_EXISTING_COMPONENT");
+    }
+
+    @Test
+    void review_whenTieOnDirectRank_expectComponentDirect() {
+        HttpResult result = postReview("scenario20", null);
+
+        assertThat(result.status()).isEqualTo(201);
+        JsonNode report = result.body();
+        assertThat(report.path("status").asString()).isEqualTo("SUCCESS");
+        assertValidIndex(report);
+        assertThat(ids(report.path("joiners"))).containsExactly(118);
+        assertThat(ids(report.path("leavers"))).containsExactly(122);
+        JsonNode trace = traceOf(report);
+        assertDecision(trace, 130, 18, "SELECTED_DIRECT");
+        assertDecision(trace, 118, 19, "SELECTED_BUFFER_NEWCOMER");
+        assertDecision(trace, 121, 22, "SELECTED_BUFFER_EXISTING_COMPONENT");
+        assertDecision(trace, 122, 23, "NOT_SELECTED_BELOW_BUFFER");
+    }
+
+    @Test
+    void review_whenTieOnBufferEdge_expectComponentKept() {
+        HttpResult result = postReview("scenario21", null);
+
+        assertThat(result.status()).isEqualTo(201);
+        JsonNode report = result.body();
+        assertThat(report.path("status").asString()).isEqualTo("SUCCESS_WITH_WARNINGS");
+        assertValidIndex(report);
+        assertThat(ids(report.path("joiners"))).containsExactly(119);
+        assertThat(ids(report.path("leavers"))).containsExactly(140);
+        assertThat(report.path("findings").valueStream().map(finding -> finding.path("code").asString()))
+            .containsExactly("SELECTION_TIE");
+        JsonNode trace = traceOf(report);
+        assertDecision(trace, 131, 22, "SELECTED_BUFFER_EXISTING_COMPONENT");
+        assertDecision(trace, 122, 23, "NOT_SELECTED_BELOW_BUFFER");
+        assertDecision(trace, 119, 19, "SELECTED_BUFFER_NEWCOMER");
+    }
+
+    @Test
+    void review_whenAllBelowCap_expectNoCapping() {
+        HttpResult result = postReview("scenario22", null);
+
+        assertThat(result.status()).isEqualTo(201);
+        JsonNode report = result.body();
+        assertThat(report.path("status").asString()).isEqualTo("SUCCESS");
+        assertValidIndex(report);
+        assertThat(report.path("constituents").valueStream()
+            .map(constituent -> constituent.path("cappingFactor").decimalValue()))
+            .allSatisfy(cappingFactor -> assertThat(cappingFactor).isEqualByComparingTo("1"));
+        assertConstituent(report, 101, "6.3303", "1");
+        assertConstituent(report, 120, "3.9178", "1");
+        assertThat(ids(report.path("leavers"))).isEmpty();
+        assertThat(security(traceOf(report), 101).path("freeFloat").decimalValue()).isEqualByComparingTo("1");
+    }
+
+    @Test
+    void review_whenComponentHasNoData_expectLeaver() {
+        HttpResult result = postReview("scenario23", null);
+
+        assertThat(result.status()).isEqualTo(201);
+        JsonNode report = result.body();
+        assertThat(report.path("status").asString()).isEqualTo("SUCCESS_WITH_WARNINGS");
+        assertValidIndex(report);
+        assertThat(ids(report.path("joiners"))).containsExactly(120);
+        assertThat(ids(report.path("leavers"))).containsExactly(150);
+        JsonNode trace = traceOf(report);
+        assertThat(findings(trace)).containsExactlyInAnyOrder(
+            tuple("MISSING_CUTOFF_PRICE", 150),
+            tuple("MISSING_REVIEW_DATA", 150));
+        assertThat(security(trace, 150).path("decision").asString()).isEqualTo("NOT_ELIGIBLE");
+        assertThat(security(trace, 150).path("existingComponent").asBoolean()).isTrue();
+        assertDecision(trace, 119, 19, "SELECTED_BUFFER_EXISTING_COMPONENT");
+        assertDecision(trace, 120, 20, "SELECTED_BUFFER_NEWCOMER");
+    }
+
+    @Test
+    void review_whenFreeFloatZero_expectFailed() {
+        HttpResult result = postReview("scenario24", null);
+
+        assertFailed(result, "INVALID_VALUE", 110);
+    }
+
     private HttpResult postReview(String scenario, String configRequest) {
         MultiValueMap<String, Object> parts = new LinkedMultiValueMap<>();
         if (configRequest != null) {

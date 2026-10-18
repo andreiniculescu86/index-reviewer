@@ -86,6 +86,19 @@ class ReviewReportTest {
         assertThat(report.getFindings()).isEmpty();
     }
 
+    @Test
+    void completed_whenAllReplaced_expectAllLeave() {
+        List<Candidate> selected = List.of(candidate(30, false), candidate(40, false));
+        List<Constituent> constituents = List.of(constituent(30), constituent(40));
+
+        ReviewReport report = ReviewReport.completed(REVIEW_ID, ReviewStatus.SUCCESS, constituents, selected,
+            List.of(10, 20));
+
+        assertThat(report.getConstituents()).extracting(Constituent::getSecurityId).containsExactly(30, 40);
+        assertThat(report.getJoiners()).containsExactly(30, 40);
+        assertThat(report.getLeavers()).containsExactly(10, 20);
+    }
+
     private static Candidate candidate(int securityId, boolean existingComponent) {
         return Candidate.builder()
             .securityId(securityId)

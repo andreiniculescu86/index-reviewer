@@ -1,4 +1,4 @@
-package com.example.indexreviewer.service.review;
+package com.example.indexreviewer.service.review.smi;
 
 import com.example.indexreviewer.model.Candidate;
 import com.example.indexreviewer.model.FfmcapResult;
@@ -10,8 +10,6 @@ import com.example.indexreviewer.model.trace.FindingCode;
 import com.example.indexreviewer.model.trace.SecurityTrace;
 import com.example.indexreviewer.model.trace.SelectionDecision;
 import com.example.indexreviewer.repository.memory.InMemoryReviewTraceRepository;
-import com.example.indexreviewer.service.review.smi.FfmcapCalculatorStep;
-import com.example.indexreviewer.service.review.smi.SecurityRecordValidator;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -225,6 +223,48 @@ class FfmcapCalculatorStepTest {
     }
 
     // Stores the step's trace records like the reviewer does, to read them combined per security
+    @Test
+    void calculate_whenNoRowsAtAll_expectNotEligible() {
+        ReviewCommand command = command(Set.of(10, 500), List.of(
+            cutoffRow(10, "2080", "0.6766", "309375"),
+            reviewRow(10, "0.6766", "309375")));
+
+        FfmcapResult result = calculator.calculate(command);
+
+        assertThat(security(result, 500)).satisfies(security -> {
+            assertThat(security.getPrice()).isNull();
+            assertThat(security.getShares()).isNull();
+            assertThat(security.getFfmcap()).isNull();
+            assertThat(security.getDecision()).isEqualTo(SelectionDecision.NOT_ELIGIBLE);
+        });
+        assertThat(result.getCandidates()).extracting(Candidate::getSecurityId).containsExactly(10);
+        assertThat(result.getFindings()).extracting(Finding::getCode, Finding::getSecurityId)
+            .containsExactlyInAnyOrder(
+                tuple(FindingCode.MISSING_CUTOFF_PRICE, 500),
+                tuple(FindingCode.MISSING_REVIEW_DATA, 500));
+    }
+
+    @Test
+    void calculate_whenComponentHasNoRows_expectNotEligible() {
+        ReviewCommand command = ReviewCommand.builder()
+            .indexType(IndexType.SMI)
+            .cutoffDate(CUTOFF_DATE)
+            .reviewDate(REVIEW_DATE)
+            .universe(Map.of(REVIEW_DATE, Set.of(10, 500)))
+            .securities(List.of(cutoffRow(10, "2080", "0.6766", "309375"), reviewRow(10, "0.6766", "309375")))
+            .composition(List.of(500, 10))
+            .build();
+
+        FfmcapResult result = calculator.calculate(command);
+
+        assertThat(security(result, 500)).satisfies(security -> {
+            assertThat(security.isExistingComponent()).isTrue();
+            assertThat(security.getDecision()).isEqualTo(SelectionDecision.NOT_ELIGIBLE);
+        });
+        assertThat(result.getCandidates()).extracting(Candidate::getSecurityId).containsExactly(10);
+        assertThat(result.getFindings()).extracting(Finding::getSecurityId).containsOnly(500);
+    }
+
     private static List<SecurityTrace> securities(FfmcapResult result) {
         InMemoryReviewTraceRepository traceRepository = new InMemoryReviewTraceRepository();
         traceRepository.appendFfmcap(REVIEW_ID, result.getTraces());

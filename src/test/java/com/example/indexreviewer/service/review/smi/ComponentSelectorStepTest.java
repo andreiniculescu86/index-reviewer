@@ -1,4 +1,4 @@
-package com.example.indexreviewer.service.review;
+package com.example.indexreviewer.service.review.smi;
 
 import com.example.indexreviewer.model.Candidate;
 import com.example.indexreviewer.model.SelectionResult;
@@ -7,7 +7,6 @@ import com.example.indexreviewer.model.trace.Finding;
 import com.example.indexreviewer.model.trace.FindingCode;
 import com.example.indexreviewer.model.trace.SelectionDecision;
 import com.example.indexreviewer.model.trace.SelectionTrace;
-import com.example.indexreviewer.service.review.smi.ComponentSelectorStep;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -186,6 +185,29 @@ class ComponentSelectorStepTest {
                 tuple(18, 18, SelectionDecision.SELECTED_DIRECT),
                 tuple(19, 19, SelectionDecision.SELECTED_BUFFER_NEWCOMER),
                 tuple(20, 20, SelectionDecision.SELECTED_BUFFER_EXISTING_COMPONENT));
+        assertThat(result.getFindings()).isEmpty();
+    }
+
+    @Test
+    void select_whenTieOnDirectRank_expectComponentDirect() {
+        List<Candidate> candidates = new ArrayList<>(IntStream.rangeClosed(1, 17)
+            .mapToObj(id -> newcomer(id, String.valueOf(1000 - id)))
+            .toList());
+        candidates.add(newcomer(18, "500"));
+        candidates.add(existingComponent(30, "500.0"));
+        candidates.add(newcomer(19, "100"));
+        candidates.add(newcomer(20, "90"));
+        candidates.add(newcomer(21, "80"));
+
+        SelectionResult result = selector.selectTopCandidates(candidates, List.of(30), SMI_RULES);
+
+        assertThat(result.getTraces()).extracting(SelectionTrace::getSecurityId, SelectionTrace::getRank,
+                SelectionTrace::getDecision)
+            .contains(
+                tuple(30, 18, SelectionDecision.SELECTED_DIRECT),
+                tuple(18, 19, SelectionDecision.SELECTED_BUFFER_NEWCOMER),
+                tuple(19, 20, SelectionDecision.SELECTED_BUFFER_NEWCOMER),
+                tuple(20, 21, SelectionDecision.NOT_SELECTED_BUFFER));
         assertThat(result.getFindings()).isEmpty();
     }
 

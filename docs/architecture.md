@@ -98,10 +98,3 @@ includes the findings of its trace, so a client sees why a review has warnings o
 - **Configured indices only.** The index rules come from configuration. A request for an index without rules is
   rejected.
 - **No user management.** The API has no authentication; it is out of scope for the assignment.
-
-## Further reading
-
-- [README](../README.md): build, run, request examples and the endpoint list.
-- [Methodology](methodology.md): how the review selects, weights and caps, and the assumptions made.
-- [Data validation](data-validation.md): which input problems are errors and which are warnings.
-- [Traceability and audit](traceability-and-auditability.md): what a review stores and how to read it.

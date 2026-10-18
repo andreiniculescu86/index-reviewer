@@ -3,13 +3,15 @@
 How the review checks its input data before it calculates FFMCAP.
 
 File problems, such as a missing file, a missing CSV header or a value that cannot be parsed, are rejected before the
-review starts, with HTTP 400. They are not stored as reviews.
+review starts, with HTTP 400. They are not stored as reviews. See [Request errors](#request-errors).
 
 The checks run in `ReviewDataValidator` (whole input) and `SecurityRecordValidator` (one security). Each problem gives
 a finding with a code, a severity, the security id, the field and a message. The findings are stored in the
 [trace](traceability-and-auditability.md#findings).
 
 ## Severities
+
+The full list of finding codes is in [Traceability](traceability-and-auditability.md#finding-codes).
 
 | Severity  | Meaning                                     | Effect                                                   |
 |-----------|---------------------------------------------|----------------------------------------------------------|
@@ -63,3 +65,21 @@ The review of the assignment files ends with `SUCCESS_WITH_WARNINGS`:
 
 - security 166 has no review date row (`MISSING_REVIEW_DATA`) and is excluded;
 - the universe lists 204 securities twice; they are counted once, without a finding.
+
+## Request errors
+
+A rejected request returns an error body with one entry per problem: `code`, `field`, `value` and `message`. These
+requests are not reviews and are not stored.
+
+| Code                   | HTTP | Meaning                                                                            |
+|------------------------|------|------------------------------------------------------------------------------------|
+| `MISSING_FILE`         | 400  | A file part (`universe`, `securityData`, `composition`) is missing                 |
+| `INVALID_FILE`         | 400  | A file is empty, not a `.csv`, or its content cannot be read (header, value, line) |
+| `MISSING_VALUE`        | 400  | A `configRequest` value is set to `null`                                           |
+| `INVALID_VALUE`        | 400  | A value has the wrong type or format: date, `indexType`, review id, `csvSeparator` |
+| `INVALID_DATE_RANGE`   | 400  | The cut-off date is after the review date                                          |
+| `MALFORMED_JSON`       | 400  | `configRequest` is not valid JSON                                                  |
+| `INVALID_REQUEST`      | 4xx  | Any other rejected request, for example a file above the size limit (413)          |
+| `INDEX_NOT_CONFIGURED` | 422  | The `indexType` has no review configured                                           |
+| `NOT_FOUND`            | 404  | Unknown review id, or a security that is not part of the review                    |
+| `INTERNAL_ERROR`       | 500  | Unexpected error; details are in the server log                                    |

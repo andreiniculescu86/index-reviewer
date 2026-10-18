@@ -1,10 +1,9 @@
-package com.example.indexreviewer.service.review;
+package com.example.indexreviewer.service.review.smi;
 
 import com.example.indexreviewer.model.Security;
 import com.example.indexreviewer.model.trace.Finding;
 import com.example.indexreviewer.model.trace.FindingCode;
 import com.example.indexreviewer.model.trace.Severity;
-import com.example.indexreviewer.service.review.smi.SecurityRecordValidator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -17,7 +16,7 @@ import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class SecurityValidatorTest {
+class SecurityRecordValidatorTest {
 
     private static final int SECURITY_ID = 7;
     private static final LocalDate CUTOFF_DATE = LocalDate.of(2026, 9, 10);

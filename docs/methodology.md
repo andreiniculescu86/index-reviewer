@@ -17,6 +17,12 @@ The index rules are in [application.yml](../src/main/resources/application.yml).
 | `cap-percentage`        | 18   | 5.12.4                        |
 | `methodology-version`   | 3.40 | Rulebook version of the rules |
 
+The index is chosen with `indexType`:
+
+| `indexType` | Meaning                                       |
+|-------------|-----------------------------------------------|
+| `SMI`       | Swiss Market Index; the only index configured |
+
 The application does not start when:
 
 - `direct-selection-rank` > `number-of-components`, or `number-of-components` > `buffer-rank`;
@@ -60,7 +66,8 @@ equal FFMCAPs are ordered:
 2. existing components in the order of the composition file;
 3. newcomers by the lower security id.
 
-When a tie decides who is selected, the review adds a `SELECTION_TIE` warning.
+When a tie decides who is selected, the review adds a `SELECTION_TIE` warning, see
+[finding codes](traceability-and-auditability.md#finding-codes).
 
 ## Selection with the buffer
 
@@ -73,11 +80,24 @@ Section 5.12.3.2:
 
 If the selection does not have exactly 20 components, the review fails with `SELECTION_SIZE`.
 
+### Selection decisions
+
+Every security in the trace gets one decision:
+
+| Decision                             | Meaning                                                        |
+|--------------------------------------|----------------------------------------------------------------|
+| `SELECTED_DIRECT`                    | Rank 1 to 18; selected                                         |
+| `SELECTED_BUFFER_EXISTING_COMPONENT` | Rank 19 to 22, already in the index; keeps its seat            |
+| `SELECTED_BUFFER_NEWCOMER`           | Rank 19 to 22, not in the index; took a seat still free        |
+| `NOT_SELECTED_BUFFER`                | Rank 19 to 22; no seat left. An existing component here leaves |
+| `NOT_SELECTED_BELOW_BUFFER`          | Rank 23 or lower; never selected. An existing component leaves |
+| `NOT_ELIGIBLE`                       | Not ranked: no valid FFMCAP; its findings say why              |
+
 **Example.** Ranks 19 and 20 are newcomers, ranks 21 and 22 are existing components. The existing components keep
 the 2 seats. The newcomers are not selected.
 
 **Q3 2026 result.** Existing components 160 and 81 on ranks 21 and 22 stay, ahead of newcomers 249 and 28 on ranks 19
-and 20. Security 177 joins on rank 7, security 103 leaves. `SmiReviewTest` checks this.
+and 20. Security 177 joins on rank 7, security 103 leaves. `SmiReviewerTest` checks this.
 
 ## Weighting and capping
 
@@ -103,8 +123,8 @@ The rulebook gives no formula. It is in a separate SIX calculation rulebook that
    weights. The scale is a convention: 1 means "not capped".
 4. **4 decimals.** Every division is rounded half up to 4 decimals.
 5. **Rounding leftover.** The rounded weights can miss 100 by a few 0.0001. The difference goes to the last
-   component, the lowest rank. A weight above the cap then gives an `INVALID_WEIGHTS` error. With a valid
-   configuration this cannot happen.
+   component, the lowest rank. A weight above the cap then gives an `INVALID_WEIGHTS` error, see
+   [finding codes](traceability-and-auditability.md#finding-codes). With a valid configuration this cannot happen.
 
 **Example.** Components A, B, C, D with FFMCAP 50, 30, 15, 5 and a cap of 35%:
 
@@ -119,7 +139,7 @@ Capping factors: A `35 x 20 / (30 x 50) = 0.4667`, B `35 x 20 / (30 x 30) = 0.77
 
 **Q3 2026 result.** Securities 155 and 205 weigh 25.42% and 23.49% before capping. Both are capped at 18%, with
 capping factors 0.5654 and 0.6117. The rounded weights add up to 99.9998%, so security 81, the last component, gets
-0.0002% and ends at 0.8505%. `SmiReviewTest` checks this.
+0.0002% and ends at 0.8505%. `SmiReviewerTest` checks this.
 
 ## Joiners and leavers
 

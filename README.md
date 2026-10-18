@@ -6,15 +6,15 @@ Assignment requirements and csv files are located in [docs](docs/assignment-requ
 
 ## Requirements
 
-- Java 25
-- Maven 3.9 or newer (the project has no Maven wrapper)
+- Java 21 or newer
+- No Maven installation needed: the Maven wrapper (`./mvnw`, or `mvnw.cmd` on Windows) downloads Maven 3.9.12
 
 ## Build and run
 
 Build the application and run the tests and Checkstyle.
 
 ```bash
-mvn verify
+./mvnw verify
 ```
 
 Start the application on port 8096.
@@ -61,14 +61,14 @@ curl -F 'configRequest={"indexType":"SMI","cutoffDate":"2026-09-10","reviewDate"
 
 The response is the review report:
 
-| Field          | Meaning                                                           |
-|----------------|-------------------------------------------------------------------|
-| `reviewId`     | Id of the stored review, used by the other endpoints              |
-| `status`       | `SUCCESS`, `SUCCESS_WITH_WARNINGS`, `FAILED` or `ERROR`           |
-| `constituents` | Final components in rank order, with `weight` and `cappingFactor` |
-| `joiners`      | Ids that enter the index                                          |
-| `leavers`      | Ids that leave the index                                          |
-| `findings`     | Errors and warnings found in the data, which explain the `status` |
+| Field          | Meaning                                                                                                                                     |
+|----------------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| `reviewId`     | Id of the stored review, used by the other endpoints                                                                                        |
+| `status`       | `SUCCESS`, `SUCCESS_WITH_WARNINGS`, `FAILED` or `ERROR`, see [Review status](docs/traceability-and-auditability.md#review-status)           |
+| `constituents` | Final components in rank order, with `weight` and `cappingFactor`                                                                           |
+| `joiners`      | Ids that enter the index                                                                                                                    |
+| `leavers`      | Ids that leave the index                                                                                                                    |
+| `findings`     | Errors and warnings found in the data, which explain the `status`, see [finding codes](docs/traceability-and-auditability.md#finding-codes) |
 
 HTTP status: `201` when the review ran, `422` when it failed on data errors (status `FAILED`, the findings, empty
 composition lists), `400` when a file or a value of the request is invalid.
@@ -92,30 +92,6 @@ Filters of `GET /v1/reviews`: `indexType`, `cutoffDate`, `reviewDate`, for examp
 To see why a review has warnings or failed, read its `findings`; the trace also lists them per security.
 
 Reviews are kept in memory and are lost when the application stops.
-
-## Tests
-
-`mvn verify` runs the unit tests and the end-to-end tests in `ReviewEndToEndIT`. Each end-to-end test starts the
-application, uploads one set of files from [src/test/resources/e2e](src/test/resources/e2e) and checks the HTTP
-response, the stored report, audit and trace.
-
-| Folder     | Scenario                                                                  | Expected                   |
-|------------|---------------------------------------------------------------------------|----------------------------|
-| scenario1  | Assignment files                                                          | Q3 2026 result             |
-| scenario2  | 4 current components in the buffer compete for 2 seats                    | 2 kept, 2 leave            |
-| scenario3  | Few large securities, capping needs 2 rounds, rounding leftover           | Capped weights             |
-| scenario4  | Delisted component, component without review data, IPO after cut-off      | Leavers, joiners           |
-| scenario5  | Free float sent in percent (85 instead of 0.85)                           | 422 `FAILED`               |
-| scenario6  | Rows loaded twice, one with a changed value                               | 422 `FAILED`               |
-| scenario7  | Request dates not in the files                                            | 422 `FAILED`               |
-| scenario8  | Comma separated export with BOM, CRLF and spaces                          | 400, then 201 with `,`     |
-| scenario9  | Truncated universe, fewer than 20 valid securities                        | 422 `FAILED`               |
-| scenario10 | Composition with one id twice                                             | 422 `FAILED`               |
-| scenario11 | Shares and free float change between the dates; review rows carry a price | Values from the right date |
-| scenario12 | Equal FFMCAP written differently (50 vs 50.00) at the last buffer seat    | Tie order, `SELECTION_TIE` |
-| scenario13 | FFMCAPs that differ only after the 15th digit decide rank 18              | Exact ranking              |
-| scenario14 | Very concentrated index, capping over 3 rounds, 4 capped                  | Capped weights             |
-| scenario15 | Security data for the whole market, incl. larger and broken non-SPI rows  | Ignored, `SUCCESS`         |
 
 ## Documentation
 

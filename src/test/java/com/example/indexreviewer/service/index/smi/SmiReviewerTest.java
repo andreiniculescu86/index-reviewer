@@ -41,7 +41,7 @@ import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.assignme
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
-class SmiReviewTest {
+class SmiReviewerTest {
 
     private static final LocalDate CUTOFF_DATE = LocalDate.of(2026, 9, 10);
     private static final LocalDate REVIEW_DATE = LocalDate.of(2026, 9, 21);
