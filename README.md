@@ -1,13 +1,29 @@
 # Index Reviewer
 
-REST API that runs the SMI index review for Q3 2026, as described in the assignment and the SIX methodology rulebook
-(section 5.12). It reads the 3 CSV files, selects the 20 components, caps the weights at 18% and returns a report.
-Assignment requirements and csv files are located in [docs](docs/assignment-requirements-SIX)
+Spring Boot REST API that runs the ordinary SMI index review for Q3 2026, following the SIX Swiss Index Methodology
+Rulebook (section 5.12).
+
+A review takes 3 CSV files: the SPI universe, the security data and the current SMI composition. It then:
+
+1. validates the data and records every problem as an error or a warning;
+2. calculates the free float market capitalization (FFMCAP) of every eligible security, with the price of the
+   cut-off date (2026-09-10) and the shares and free float of the review date (2026-09-21);
+3. ranks the securities by FFMCAP and selects the 20 components, ranks 1 to 18 directly and ranks 19 to 22 through
+   the buffer, where current components keep their seats first;
+4. weights the components by FFMCAP and caps every weight at 18% with a capping factor.
+
+The response is the review report: the final constituents with their weights and capping factors, the joiners, the
+leavers, the review status and the findings behind that status. Every review is stored with an audit record and a
+trace per security, so its result can be explained afterwards.
+
+The assignment, its requirements and the CSV files are in
+[docs/assignment-requirements-SIX](docs/assignment-requirements-SIX).
 
 ## Requirements
 
 - Java 21 or newer
-- No Maven installation needed: the Maven wrapper (`./mvnw`, or `mvnw.cmd` on Windows) downloads Maven 3.9.12
+- No Maven installation needed: the Maven wrapper downloads Maven 3.9.12. Use `./mvnw` on macOS and Linux, and
+  `mvnw.cmd` on Windows.
 
 ## Build and run
 
@@ -75,21 +91,31 @@ composition lists), `400` when a file or a value of the request is invalid.
 
 ## Endpoints
 
-| Endpoint                                             | Returns                                           |
-|------------------------------------------------------|---------------------------------------------------|
-| `POST /v1/reviews`                                   | Runs a review and returns its report              |
-| `GET /v1/reviews`                                    | Reports of stored reviews, newest first; filters  |
-| `GET /v1/reviews/{reviewId}`                         | Report of a stored review                         |
-| `GET /v1/reviews/{reviewId}/audit`                   | What the review used: dates, rules, version, time |
-| `GET /v1/reviews/{reviewId}/trace`                   | Values, rank and decision per security, findings  |
-| `GET /v1/reviews/{reviewId}/securities/{securityId}` | Trace of one security, e.g. why it left the index |
+The request and response models of each endpoint are described in the [API reference](docs/api.md).
 
-Filters of `GET /v1/reviews`: `indexType`, `cutoffDate`, `reviewDate`, for example
-`/v1/reviews?indexType=SMI&cutoffDate=2026-09-10`.
+| Endpoint                                                             | Returns                                       |
+|----------------------------------------------------------------------|-----------------------------------------------|
+| [`POST /v1/reviews`][api-run]                                        | Runs a review and returns its report          |
+| [`GET /v1/reviews`][api-list]                                        | Stored reviews, newest first; filters         |
+| [`GET /v1/reviews/{reviewId}`][api-get]                              | Report of one stored review                   |
+| [`GET /v1/reviews/{reviewId}/audit`][api-audit]                      | What the review used: dates, rules, version   |
+| [`GET /v1/reviews/{reviewId}/trace`][api-trace]                      | Values, rank, decision per security; findings |
+| [`GET /v1/reviews/{reviewId}/securities/{securityId}`][api-security] | Trace of one security, e.g. why it left       |
 
-`GET /v1/reviews` returns the same report model as `GET /v1/reviews/{reviewId}`.
+[api-run]: docs/api.md#run-a-review
 
-To see why a review has warnings or failed, read its `findings`; the trace also lists them per security.
+[api-list]: docs/api.md#list-reviews
+
+[api-get]: docs/api.md#get-a-review
+
+[api-audit]: docs/api.md#get-the-audit-record
+
+[api-trace]: docs/api.md#get-the-trace
+
+[api-security]: docs/api.md#get-one-security
+
+To see why a review has warnings or failed, read its `findings` field from the /review response; the trace also lists
+them per security ID.
 
 Reviews are kept in memory and are lost when the application stops.
 
@@ -99,6 +125,8 @@ Reviews are kept in memory and are lost when the application stops.
 - [Data validation](docs/data-validation.md): data checks, errors and warnings.
 - [Traceability and audit](docs/traceability-and-auditability.md): what each review stores and how to read it.
 - [Design decisions](docs/design-decisions.md): technical choices, the alternatives and why.
+- [API reference](docs/api.md): endpoints, request parts, response models and HTTP statuses.
+- [Architecture](docs/architecture.md): what the service does, its external interactions and the main review flows.
 - [AI setup](docs/README-AI.md): the Claude rules, skills and agents used to build the project. They are kept on
   purpose, to show how the AI tools were set up.
 

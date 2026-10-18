@@ -1,100 +1,195 @@
 # Application architecture
 
-The Index Reviewer is a REST service that runs an ordinary index review. A client uploads the input data as CSV
-files, the service selects the index components, weights and caps them, and returns a review report: the final
-constituents with their weighting factors, the joiners, the leavers and the review status. Every review is stored, so
-that its result and the reasons behind it can be read again later. The SMI is the only configured index.
+The Index Reviewer is a Spring Boot REST service that runs an ordinary index review. A client uploads the input data
+as 3 CSV files; the service validates the data, selects the index components, weights and caps them, and returns a
+review report. Every review is stored with an audit record and a trace, so that its result and the reasons behind it
+can be read again later. The SMI is the only configured index, but the review logic is built so that other indices
+and review dates can be added without changing the API or the services.
+
+The design follows four goals:
+
+| Goal                           | How the architecture supports it                                           |
+|--------------------------------|----------------------------------------------------------------------------|
+| Result follows the rulebook    | Rules come from checked configuration; the final index is checked again    |
+| Every result can be explained  | Each step stores its values, decisions and findings per security           |
+| Bad data never passes silently | Each data problem stops the review as an error or is recorded as a warning |
+| New indices without rework     | Each index has its own reviewer behind one interface, reusing the steps    |
 
 ## Context
 
 ```text
-  CSV files: SPI universe,
-  security data, current
-  composition
-        |
-        | uploaded by the user
-        v
-+---------------------+   runs a review: POST /v1/reviews     +-------------------------------------+
-| API client          | ------------------------------------> | Index Reviewer                      |
-| curl or Swagger UI  |   reads reviews: GET /v1/reviews/...  | Spring Boot REST API                |
-|                     | ------------------------------------> |                                     |
-|                     |                                       |   index rules:  application.yml     |
-|                     | <------------------------------------ |   review store: in memory           |
-+---------------------+   report, audit, trace                +-------------------------------------+
-                                                                                 |
-                                                                                 | structured logs (ECS)
-                                                                                 v
-                                                                    logs/index-reviewer.json
+                     POST /v1/reviews (3 CSV files, optional index and dates)
++--------------------+  ------------------------------------------------>  +---------------------------------+
+| API client         |  GET /v1/reviews/... (report, audit, trace)          | Index Reviewer                  |
+| curl or Swagger UI |  ------------------------------------------------>  | Spring Boot REST API, Java 21   |
+|                    |  <------------------------------------------------  |                                 |
++--------------------+  JSON: report, audit, trace or error                 | index rules: application.yml    |
+                                                                            | review store: in memory         |
+                                                                            +---------------------------------+
+                                                                                            |
+                                                                                            | structured logs (ECS)
+                                                                                            v
+                                                                                logs/index-reviewer.json
 ```
 
-The service has no database, message broker or upstream system. All input of a review arrives in the request, and
-the stored reviews live in the memory of the running instance.
+All input of a review arrives in the request. The service calls no other system and keeps the stored reviews in the
+memory of the running instance.
+
+## Building blocks
+
+```text
++------------------------------------------------------------------+      +-------------------------------+
+| API layer                                                        | ---> | CsvFileReader                 |
+| ReviewController, MonitorController, request validation,         |      | uploaded CSV to typed rows    |
+| mappers, GlobalExceptionHandler                                  |      +-------------------------------+
++------------------------------------------------------------------+
+        | ReviewCommand: rows, index, dates          ^ ReviewReport, audit record, trace
+        v                                            |
++------------------------------------------------------------------+      +-------------------------------+
+| ReviewService                                                    | ---> | Review store, in memory       |
+| picks the IndexReviewer of the index, reads stored reviews       |      | ReviewAuditRepository         |
++------------------------------------------------------------------+      | ReviewTraceRepository         |
+        |                                                                 +-------------------------------+
+        v                                                                                 ^
++------------------------------------------------------------------+                      |
+| SmiReviewer                                                      | ---------------------+
+| runs the steps with the SMI rules, stores the trace and findings |   trace after each step,
+| of each step, then the audit record                              |   audit record at the end
++------------------------------------------------------------------+
+        | calls the steps in order; each returns result, trace records and findings
+        v
++------------------------+  +------------------------+  +------------------------+  +------------------------+
+| ReviewDataValidator    |  | FfmcapCalculatorStep   |  | ComponentSelectorStep  |  | WeightCalculatorStep   |
+| dates, composition,    |  | row checks, eligibility|  | ranking, buffer, ties  |  | weights, capping       |
+| enough candidates      |  | and FFMCAP             |  |                        |  | rounds, capping factor |
++------------------------+  +------------------------+  +------------------------+  +------------------------+
+```
+
+| Block          | Package                                        | Responsibility                                  |
+|----------------|------------------------------------------------|-------------------------------------------------|
+| API layer      | `controller`, `dto`, `validation`, `exception` | HTTP contract, request checks, errors           |
+| Review service | `service`                                      | Routes a review to its index; reads reviews     |
+| Index reviewer | `service.index`                                | Runs the steps of one index, records results    |
+| Review steps   | `service.review.smi`                           | Calculations returning result, trace, findings  |
+| Models         | `model`                                        | Command, candidates, report, audit, trace       |
+| Repositories   | `repository`                                   | CSV parsing and review store, behind interfaces |
+| Configuration  | `config`, `application.yml`                    | Index rules, OpenAPI, MapStruct, JSON part      |
+
+The steps do not store anything themselves. They take their input and the index rules and return values, so each step
+can be tested on its own and reused by another index.
 
 ## Flow 1: run a review
 
-A review runs synchronously inside the request. It passes through four stages; each stage records its results and
-findings in the review trace before the next one starts. A stage that finds a data error stops the review, so a
-failed review still shows how far it got.
+The review runs synchronously inside the request.
 
 ```text
-POST /v1/reviews: 3 CSV files, optional index and dates
-        |
-        v
-Files readable and values valid? ---- no ----> 400 Bad Request, nothing stored
-        |
-        | yes
-        v
-+---------------------------------------------+
-| 1. Check the input                          |
-|    dates present, composition complete      | ----+
-+---------------------------------------------+     |
-        |                                           |
-        v                                           |
-+---------------------------------------------+     |
-| 2. Calculate FFMCAP per universe security   | ----+
-+---------------------------------------------+     |
-        |                                           |   data error
-        v                                           +------------> Store the audit record, status FAILED
-+---------------------------------------------+     |              422 Unprocessable Content, empty lists
-| 3. Rank and select the components,          |     |
-|    with the buffer                          | ----+
-+---------------------------------------------+     |
-        |                                           |
-        v                                           |
-+---------------------------------------------+     |
-| 4. Weight and cap the components            | ----+
-+---------------------------------------------+
-        |
-        v
-Store the audit record
-        |
-        v
-201 Created: report with constituents, weights, joiners, leavers, status
+POST /v1/reviews
+   |
+   v
+API layer: read and check the request (files present and CSV, dates in order, separator, index)
+   |
+   v
+SmiReviewer, new review id
+   |
+   |   stage                                   stored in the trace                stops on
+   |   --------------------------------------  ---------------------------------  ------------------------------
+   +-> 1. check the input                      findings                           dates missing in the files,
+   |                                                                              composition not 20 securities
+   +-> 2. calculate FFMCAP per security        price, shares, free float, FFMCAP, invalid or conflicting values,
+   |      and check there are enough           eligibility, findings              fewer than 20 eligible
+   +-> 3. rank and select with the buffer      rank, selection decision,          selection not 20 components
+   |                                           tie warnings
+   +-> 4. weight and cap                       weight, capping factor             a weight above the cap
+   |
+   v
+store the audit record (status, dates, rules, version, time, composition)
+   |
+   v
+response: review report with constituents, joiners, leavers, status and findings
 ```
 
-An unexpected error inside a stage is stored with status `ERROR` and answered with `500`.
+Each stage writes to the trace before the next stage starts. A stage with an `ERROR` finding ends the review, so a
+failed review still shows everything that was calculated before the error. Warnings never stop a review.
+
+### Outcomes
+
+| Situation                         | Status                  | HTTP  | Stored               | Body                 |
+|-----------------------------------|-------------------------|-------|----------------------|----------------------|
+| All stages passed, no warnings    | `SUCCESS`               | `201` | audit, trace         | report               |
+| All stages passed, with warnings  | `SUCCESS_WITH_WARNINGS` | `201` | audit, trace         | report               |
+| A stage found a data error        | `FAILED`                | `422` | audit, partial trace | report with findings |
+| Unexpected exception in a stage   | `ERROR`                 | `500` | audit, partial trace | error response       |
+| Invalid file, value or date order | none                    | `400` | nothing              | error response       |
+| Index without configured rules    | none                    | `422` | nothing              | error response       |
+
+A failed review has empty constituent, joiner and leaver lists. A data error is a review outcome, not a broken
+request: the request was valid, the data was not. That is why it is stored and traceable like a successful review.
 
 ## Flow 2: read a stored review
 
 ```text
-+------------+   GET /v1/reviews/{reviewId}         +----------------+   looks up the audit    +--------------+
-| API client |   .../audit, .../trace,              | Index Reviewer |   record and the trace  | Review store |
-|            |   .../securities/{securityId}        |                | ----------------------> | in memory    |
-|            | -----------------------------------> |                |                         |              |
-|            | <----------------------------------- |                |                         |              |
-+------------+   report, audit, trace, or 404       +----------------+                         +--------------+
-                 for an unknown review
+GET /v1/reviews                                   ---> list of review reports, filtered by index and dates
+GET /v1/reviews/{reviewId}                        ---> review report
+GET /v1/reviews/{reviewId}/audit                  ---> audit record
+GET /v1/reviews/{reviewId}/trace                  ---> trace of all securities and all findings
+GET /v1/reviews/{reviewId}/securities/{securityId} ---> trace and findings of one security
+
+unknown review id ---> 404
 ```
 
-The report of a stored review is derived again from its audit record and trace, so it always matches what the review
-recorded. `GET /v1/reviews` lists the reports of the stored reviews and can filter them by index and dates. Every report
-includes the findings of its trace, so a client sees why a review has warnings or failed.
+## Stored data
 
-## Service-level constraints
+```text
+review id
+   |
+   +-- audit record   what the review used and its outcome:
+   |                  index, cut-off and review date, rules, application version, time, status, new composition
+   |
+   +-- trace          how the review reached the outcome:
+                      per security: price, shares, free float, FFMCAP, rank, decision, capping factor, weight
+                      findings:     code, severity, security, field, message
 
-- **One request, one review.** The uploaded files are not kept; the review stores its audit record and its trace.
-- **In-memory storage.** Stored reviews are lost when the application stops, and they are not shared between
-  instances.
-- **Configured indices only.** The index rules come from configuration. A request for an index without rules is
-  rejected.
+review report = derived from the audit record and the trace when it is read
+```
+
+The report is not stored separately. Deriving it from the audit record and the trace means the report and its
+explanation can never disagree. The models are described in the [API reference](api.md).
+
+## Cross-cutting concerns
+
+| Concern         | Approach                                                                                        |
+|-----------------|-------------------------------------------------------------------------------------------------|
+| Validation      | Request format at the API layer (`400`); data content in the review as findings with severities |
+| Error responses | `GlobalExceptionHandler` turns every rejected request into the same `ErrorResponse` shape       |
+| Configuration   | SMI rules bound from `application.yml` and validated at startup; a wrong rule stops the start   |
+| Precision       | `BigDecimal` for all amounts; weights and capping factors rounded half up to 4 decimals         |
+| Logging         | Review id, status and step results, as ECS JSON in `logs/index-reviewer.json`                   |
+| Concurrency     | Each request runs its own review; the in-memory store uses `ConcurrentHashMap`                  |
+| API description | springdoc serves Swagger UI and the OpenAPI specification from the code                         |
+
+## Extension points
+
+| Change                          | What to add                                                    | Unchanged       |
+|---------------------------------|----------------------------------------------------------------|-----------------|
+| Another index, e.g. the SLI     | `IndexType` value, rules in `application.yml`, `IndexReviewer` | API, steps      |
+| Another review period           | New data files and dates in the request                        | Everything      |
+| Another rule, e.g. a tiered cap | A new step, used by that index's reviewer                      | Existing steps  |
+| A database                      | Implementations of the 2 repository interfaces                 | Services, steps |
+| Another input format            | A `FileReader` implementation                                  | Services, steps |
+
+## Constraints
+
+- **One request, one review.** The uploaded files are not kept; the audit record and the trace are.
+- **In-memory storage.** Stored reviews are lost when the application stops and are not shared between instances.
+- **Synchronous.** A review runs inside the request and the client waits for the report.
+- **Configured indices only.** A request for an index without rules is rejected.
 - **No user management.** The API has no authentication; it is out of scope for the assignment.
+
+## Further reading
+
+- [README](../README.md): build, run, request examples and the endpoint list.
+- [API reference](api.md): endpoints, response models and HTTP statuses.
+- [Methodology](methodology.md): how the review selects, weights and caps, and the assumptions made.
+- [Data validation](data-validation.md): which input problems are errors and which are warnings.
+- [Traceability and audit](traceability-and-auditability.md): what a review stores and how to read it.
+- [Design decisions](design-decisions.md): technical choices, the alternatives and why.
