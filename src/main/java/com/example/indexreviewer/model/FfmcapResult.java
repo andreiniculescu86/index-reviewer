@@ -1,10 +1,24 @@
 package com.example.indexreviewer.model;
 
-import java.math.BigDecimal;
-import java.util.Map;
+import com.example.indexreviewer.model.trace.FfmcapTrace;
+import com.example.indexreviewer.model.trace.Finding;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Value;
+
+import java.util.List;
 
 /**
- * FFMCAP per security id, together with the validation result of the data used to calculate it.
+ * Result of the FFMCAP step: the candidates the selection can rank, ordered by security id, the trace record of every
+ * security with the values used, and the findings of the data used.
  */
-public record FfmcapResult(Map<Integer, BigDecimal> ffmcaps, ValidationResult validation) {
+@Value
+@Builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+public class FfmcapResult {
+
+    List<Candidate> candidates;
+    List<FfmcapTrace> traces;
+    List<Finding> findings;
 }

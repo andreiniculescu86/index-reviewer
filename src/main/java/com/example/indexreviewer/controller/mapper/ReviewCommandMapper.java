@@ -6,7 +6,7 @@ import com.example.indexreviewer.dto.csv.SecurityData;
 import com.example.indexreviewer.dto.csv.Universe;
 import com.example.indexreviewer.dto.request.ConfigRequest;
 import com.example.indexreviewer.model.ReviewCommand;
-import com.example.indexreviewer.model.SecurityRecord;
+import com.example.indexreviewer.model.Security;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -23,13 +23,13 @@ public interface ReviewCommandMapper {
     @Mapping(target = "cutoffDate", source = "request.cutoffDate")
     @Mapping(target = "reviewDate", source = "request.reviewDate")
     @Mapping(target = "universe", source = "universe")
-    @Mapping(target = "securityRecords", source = "securityData")
+    @Mapping(target = "securities", source = "securityData")
     @Mapping(target = "composition", source = "composition")
     ReviewCommand toServiceModel(ConfigRequest request, List<Universe> universe, List<SecurityData> securityData,
                                  List<Composition> composition);
 
     @Mapping(target = "securityId", source = "id")
-    SecurityRecord toSecurityRecord(SecurityData securityData);
+    Security toSecurityRecord(SecurityData securityData);
 
     default Map<LocalDate, Set<Integer>> toUniverse(List<Universe> universe) {
         return universe.stream().collect(Collectors.groupingBy(Universe::getDate,

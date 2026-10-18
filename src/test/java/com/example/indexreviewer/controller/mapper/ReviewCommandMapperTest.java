@@ -6,7 +6,7 @@ import com.example.indexreviewer.dto.csv.Universe;
 import com.example.indexreviewer.dto.request.ConfigRequest;
 import com.example.indexreviewer.model.IndexType;
 import com.example.indexreviewer.model.ReviewCommand;
-import com.example.indexreviewer.model.SecurityRecord;
+import com.example.indexreviewer.model.Security;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -32,12 +32,12 @@ class ReviewCommandMapperTest {
 
         ReviewCommand command = mapper.toServiceModel(request, List.of(), List.of(), List.of());
 
-        assertThat(command.indexType()).isEqualTo(IndexType.SMI);
-        assertThat(command.cutoffDate()).isEqualTo(CUTOFF_DATE);
-        assertThat(command.reviewDate()).isEqualTo(REVIEW_DATE);
-        assertThat(command.universe()).isEmpty();
-        assertThat(command.securityRecords()).isEmpty();
-        assertThat(command.composition()).isEmpty();
+        assertThat(command.getIndexType()).isEqualTo(IndexType.SMI);
+        assertThat(command.getCutoffDate()).isEqualTo(CUTOFF_DATE);
+        assertThat(command.getReviewDate()).isEqualTo(REVIEW_DATE);
+        assertThat(command.getUniverse()).isEmpty();
+        assertThat(command.getSecurities()).isEmpty();
+        assertThat(command.getComposition()).isEmpty();
     }
 
     @Test
@@ -47,9 +47,9 @@ class ReviewCommandMapperTest {
 
         ReviewCommand command = mapper.toServiceModel(new ConfigRequest(), universe, List.of(), List.of());
 
-        assertThat(command.universe()).containsOnlyKeys(REVIEW_DATE, CUTOFF_DATE);
-        assertThat(command.universe().get(REVIEW_DATE)).containsExactlyInAnyOrder(10, 166);
-        assertThat(command.universe().get(CUTOFF_DATE)).containsExactly(10);
+        assertThat(command.getUniverse()).containsOnlyKeys(REVIEW_DATE, CUTOFF_DATE);
+        assertThat(command.getUniverse().get(REVIEW_DATE)).containsExactlyInAnyOrder(10, 166);
+        assertThat(command.getUniverse().get(CUTOFF_DATE)).containsExactly(10);
     }
 
     @Test
@@ -58,7 +58,7 @@ class ReviewCommandMapperTest {
 
         ReviewCommand command = mapper.toServiceModel(new ConfigRequest(), universe, List.of(), List.of());
 
-        assertThat(command.universe().get(REVIEW_DATE)).containsExactly(10);
+        assertThat(command.getUniverse().get(REVIEW_DATE)).containsExactly(10);
     }
 
     @Test
@@ -67,7 +67,7 @@ class ReviewCommandMapperTest {
 
         ReviewCommand command = mapper.toServiceModel(new ConfigRequest(), List.of(), List.of(), composition);
 
-        assertThat(command.composition()).containsExactly(155, 205, 155);
+        assertThat(command.getComposition()).containsExactly(155, 205, 155);
     }
 
     @Test
@@ -78,10 +78,20 @@ class ReviewCommandMapperTest {
         ReviewCommand command = mapper.toServiceModel(new ConfigRequest(), List.of(),
             List.of(cutoffRow, reviewRow), List.of());
 
-        assertThat(command.securityRecords()).containsExactly(
-            new SecurityRecord(101, CUTOFF_DATE, new BigDecimal("311.5"), new BigDecimal("0.8048"),
-                new BigDecimal("5835000")),
-            new SecurityRecord(101, REVIEW_DATE, null, new BigDecimal("0.8476"), new BigDecimal("5835000")));
+        assertThat(command.getSecurities()).containsExactly(
+            Security.builder()
+                .securityId(101)
+                .date(CUTOFF_DATE)
+                .price(new BigDecimal("311.5"))
+                .freeFloat(new BigDecimal("0.8048"))
+                .shares(new BigDecimal("5835000"))
+                .build(),
+            Security.builder()
+                .securityId(101)
+                .date(REVIEW_DATE)
+                .freeFloat(new BigDecimal("0.8476"))
+                .shares(new BigDecimal("5835000"))
+                .build());
     }
 
     private static Universe universe(LocalDate date, int id) {

@@ -51,7 +51,9 @@ application's evolving setup and behavior.
 - [Architecture guide](architecture.md): service purposes, external systems, and main flow diagrams.
 - [Testing guide](testing.md): this application's test suites, fixtures, services, setup, and commands.
 - [Development setup](development.md): build gates, quality profiles, commands, overrides, and IDE setup.
+- [Methodology](methodology.md): review rules, tie handling, buffer selection and rulebook assumptions.
 - [Data validation](data-validation.md): service-layer review data checks, errors and warnings.
+- [Traceability](traceability-and-auditability.md): traceability and audit of stored review executions, with examples.
 - Git permissions and standing rules live in [CLAUDE.md](../CLAUDE.md); requested commit and PR/MR procedures live in
   the [project-review skill](../.claude/skills/project-review/SKILL.md#requested-commits-and-prmr-drafts).
 

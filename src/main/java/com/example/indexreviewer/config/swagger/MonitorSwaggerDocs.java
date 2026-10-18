@@ -1,6 +1,8 @@
 package com.example.indexreviewer.config.swagger;
 
 import com.example.indexreviewer.dto.response.error.ErrorResponse;
+import com.example.indexreviewer.dto.response.review.ReviewAuditResponse;
+import com.example.indexreviewer.dto.response.review.ReviewTraceResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -25,9 +27,15 @@ public interface MonitorSwaggerDocs {
 
     @Target({ElementType.METHOD})
     @Retention(RetentionPolicy.RUNTIME)
-    @Operation(summary = "Get the calculation trace details of a specific review ID execution", description = "")
-    @Parameter(name = "reviewId", in = ParameterIn.PATH, description = "Review run id.")
-    @ApiResponse(responseCode = "200", description = "Review trace.")
+    @Operation(summary = "Get the calculation trace details of a specific review ID execution",
+        description = "The values used and decisions taken for every security, and all findings.")
+    @Parameter(name = "reviewId", in = ParameterIn.PATH, description = "Review execution id.")
+    @ApiResponse(responseCode = "200", description = "Review trace.",
+        content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+            schema = @Schema(implementation = ReviewTraceResponse.class)))
+    @ApiResponse(responseCode = "400", description = "The review id is not a UUID.",
+        content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+            schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(responseCode = "404", description = "Unknown review id.",
         content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
             schema = @Schema(implementation = ErrorResponse.class)))
@@ -38,10 +46,18 @@ public interface MonitorSwaggerDocs {
     @Retention(RetentionPolicy.RUNTIME)
     @Operation(summary = "Get the trace of one security in a review",
         description = "Explains why the security is in or out of the index and how its weight was derived.")
-    @Parameter(name = "reviewId", in = ParameterIn.PATH, description = "Review run id.")
+    @Parameter(name = "reviewId", in = ParameterIn.PATH, description = "Review execution id.")
     @Parameter(name = "securityId", in = ParameterIn.PATH, description = "Security id.", example = "101")
-    @ApiResponse(responseCode = "200", description = "Security trace.")
-    @ApiResponse(responseCode = "404", description = "Unknown review id, or the security is not part of the review.",
+    @ApiResponse(responseCode = "200", description = "The review trace with only this security and its findings. The "
+        + "securities list is empty when the security has findings but no trace, e.g. duplicate rows of a security "
+        + "outside the universe.",
+        content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+            schema = @Schema(implementation = ReviewTraceResponse.class)))
+    @ApiResponse(responseCode = "400", description = "The review id is not a UUID or the security id not a number.",
+        content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+            schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(responseCode = "404", description = "Unknown review id, or the review has neither a trace nor a "
+        + "finding for the security.",
         content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
             schema = @Schema(implementation = ErrorResponse.class)))
     @interface GetReviewSecurity {
@@ -49,22 +65,26 @@ public interface MonitorSwaggerDocs {
 
     @Target({ElementType.METHOD})
     @Retention(RetentionPolicy.RUNTIME)
-    @Operation(summary = "Get the audit manifest of a review",
-        description = "Application version, dates and their source, index definition snapshot, numeric settings "
-            + "and input files with SHA-256 hashes.")
-    @Parameter(name = "reviewId", in = ParameterIn.PATH, description = "Review run id.")
-    @ApiResponse(responseCode = "200", description = "Audit manifest.")
+    @Operation(summary = "Get the audit data of a review",
+        description = "Start time, application version and rules.")
+    @Parameter(name = "reviewId", in = ParameterIn.PATH, description = "Review execution id.")
+    @ApiResponse(responseCode = "200", description = "Review audit data.",
+        content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+            schema = @Schema(implementation = ReviewAuditResponse.class)))
+    @ApiResponse(responseCode = "400", description = "The review id is not a UUID.",
+        content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+            schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(responseCode = "404", description = "Unknown review id.",
         content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
             schema = @Schema(implementation = ErrorResponse.class)))
-    @interface GetReviewManifest {
+    @interface GetReviewAudit {
     }
 
     @Target({ElementType.METHOD})
     @Retention(RetentionPolicy.RUNTIME)
     @Operation(summary = "Download an input file of a review",
         description = "Returns the stored copy of the CSV file the review was calculated from.")
-    @Parameter(name = "reviewId", in = ParameterIn.PATH, description = "Review run id.")
+    @Parameter(name = "reviewId", in = ParameterIn.PATH, description = "Review execution id.")
     @Parameter(name = "role", in = ParameterIn.PATH, description = "Input file role.",
         schema = @Schema(allowableValues = {"universe", "securityData", "composition"}))
     @ApiResponse(responseCode = "200", description = "Stored input file.")

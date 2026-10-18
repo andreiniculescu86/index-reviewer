@@ -23,6 +23,9 @@ Ideally, data should be accessed from a database or via APIs, of if files are ke
 that the file rows can be read one by one, each row containing the required data not to require the read of the entire
 file in memory.
 
+Important, a must, aspect missing for production is application Observability - Implement OpenTelemetry to monitor the
+application (traces, metrics, logs), in a distributed system.
+
 ## Documentation and Agentic setup
 
 The project was developed with the aid of Claude. The setup files (agents, skill, plugins) are kept on purpose in this
@@ -34,4 +37,8 @@ project guides linked from that map.
 
 Project documentation is present in the [docs](docs) directory, in .md files.
 
+- [Methodology](docs/methodology.md): dates, FFMCAP, ranking with ties, buffer selection, capping and rulebook
+  assumptions.
 - [Data validation](docs/data-validation.md): errors and warnings of the review data checks in the service layer.
+- [Traceability](docs/traceability-and-auditability.md): traceability and audit of stored review executions, with
+  examples.

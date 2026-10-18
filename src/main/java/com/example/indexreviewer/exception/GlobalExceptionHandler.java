@@ -68,15 +68,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /**
-     * The review data contains invalid values, e.g. a price, shares or free float that is not positive, or
-     * conflicting rows. Returns one error per invalid value found.
+     * A review id, or a security id within a review, does not exist.
      */
-    @ExceptionHandler(InvalidReviewDataException.class)
-    public ResponseEntity<Object> handleInvalidReviewData(InvalidReviewDataException ex, WebRequest request) {
-        List<Error> errors = ex.getErrors().stream()
-            .map(message -> new Error(ErrorCode.INVALID_VALUE, message))
-            .toList();
-        return createResponseEntity(new ErrorResponse(errors), new HttpHeaders(), HttpStatus.BAD_REQUEST, request);
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<Object> handleNotFound(NotFoundException ex, WebRequest request) {
+        Error error = new Error(ErrorCode.NOT_FOUND, ex.getField(), ex.getValue(), ex.getMessage());
+        return createResponseEntity(new ErrorResponse(List.of(error)), new HttpHeaders(), HttpStatus.NOT_FOUND,
+            request);
     }
 
     /**

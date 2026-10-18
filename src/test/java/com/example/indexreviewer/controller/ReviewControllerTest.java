@@ -2,7 +2,9 @@ package com.example.indexreviewer.controller;
 
 import com.example.indexreviewer.config.ConfigRequestPartConverter;
 import com.example.indexreviewer.controller.mapper.ReviewCommandMapperImpl;
+import com.example.indexreviewer.controller.mapper.ReviewResponseMapperImpl;
 import com.example.indexreviewer.exception.GlobalExceptionHandler;
+import com.example.indexreviewer.exception.NotFoundException;
 import com.example.indexreviewer.repository.csv.CsvFileReaderFactory;
 import com.example.indexreviewer.service.ReviewService;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +21,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.stream.Stream;
 
 import static com.example.indexreviewer.dto.response.error.ErrorCode.INVALID_DATE_RANGE;
@@ -27,8 +30,22 @@ import static com.example.indexreviewer.dto.response.error.ErrorCode.INVALID_VAL
 import static com.example.indexreviewer.dto.response.error.ErrorCode.MALFORMED_JSON;
 import static com.example.indexreviewer.dto.response.error.ErrorCode.MISSING_FILE;
 import static com.example.indexreviewer.dto.response.error.ErrorCode.MISSING_VALUE;
+import static com.example.indexreviewer.dto.response.error.ErrorCode.NOT_FOUND;
+import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.CAPPED_COMPONENT;
+import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.COMPOSITION_SIZE;
+import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.ELIGIBLE_SECURITY;
+import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.JOINER;
+import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.LEAVER;
+import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.REVIEW_ID;
+import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.report;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasSize;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -38,6 +55,7 @@ class ReviewControllerTest {
 
     private static final String REVIEWS_PATH = "/v1/reviews";
 
+    private final ReviewService reviewService = mock(ReviewService.class);
     private MockMvc mockMvc;
 
     @BeforeEach
@@ -46,12 +64,13 @@ class ReviewControllerTest {
         validator.afterPropertiesSet();
         JacksonJsonHttpMessageConverter jsonConverter = new JacksonJsonHttpMessageConverter();
         ReviewController controller = new ReviewController(new CsvFileReaderFactory(),
-            new ReviewCommandMapperImpl(), mock(ReviewService.class));
+            new ReviewCommandMapperImpl(), new ReviewResponseMapperImpl(), reviewService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
             .setControllerAdvice(new GlobalExceptionHandler())
             .setValidator(validator)
             .setMessageConverters(jsonConverter, new ConfigRequestPartConverter(jsonConverter.getMapper()))
             .build();
+        when(reviewService.runReview(any())).thenReturn(report(List.of(ELIGIBLE_SECURITY), List.of()));
     }
 
     @Test
@@ -59,7 +78,26 @@ class ReviewControllerTest {
         uploadWithConfig(configRequest("""
             {"indexType": "SMI", "cutoffDate": "2026-09-10", "reviewDate": "2026-09-21"}
             """))
-            .andExpect(status().isCreated());
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.status").value("SUCCESS"))
+            .andExpect(jsonPath("$.reviewId").value(REVIEW_ID.toString()));
+    }
+
+    @Test
+    void upload_whenReviewFails_expectUnprocessable() throws Exception {
+        when(reviewService.runReview(any())).thenReturn(report(List.of(), List.of(COMPOSITION_SIZE)));
+
+        mockMvc.perform(multipart(REVIEWS_PATH)
+                .file(universe())
+                .file(securityData())
+                .file(composition()))
+            .andExpect(status().is(422))
+            .andExpect(jsonPath("$.reviewId").value(REVIEW_ID.toString()))
+            .andExpect(jsonPath("$.status").value("FAILED"))
+            .andExpect(jsonPath("$.constituents", hasSize(0)))
+            .andExpect(jsonPath("$.joiners", hasSize(0)))
+            .andExpect(jsonPath("$.leavers", hasSize(0)))
+            .andExpect(jsonPath("$.findings").doesNotExist());
     }
 
     @Test
@@ -113,6 +151,8 @@ class ReviewControllerTest {
                 .file(composition()))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.errors[*].field", containsInAnyOrder("universe", "securityData")));
+
+        verify(reviewService, never()).runReview(any());
     }
 
     @Test
@@ -230,6 +270,42 @@ class ReviewControllerTest {
                 .param("cutoffDate", "2026-09-10")
                 .param("reviewDate", "2026-09-21"))
             .andExpect(status().isOk());
+    }
+
+    @Test
+    void getReview_whenStored_expectReport() throws Exception {
+        when(reviewService.getReport(REVIEW_ID))
+            .thenReturn(report(List.of(CAPPED_COMPONENT, JOINER, LEAVER), List.of()));
+
+        mockMvc.perform(get(REVIEWS_PATH + "/" + REVIEW_ID))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.reviewId").value(REVIEW_ID.toString()))
+            .andExpect(jsonPath("$.status").value("SUCCESS"))
+            .andExpect(jsonPath("$.constituents[*].securityId", contains(155, 177)))
+            .andExpect(jsonPath("$.constituents[0].weight").value(0.18))
+            .andExpect(jsonPath("$.constituents[0].cappingFactor").value(0.565353))
+            .andExpect(jsonPath("$.joiners", contains(177)))
+            .andExpect(jsonPath("$.leavers", contains(103)));
+    }
+
+    @Test
+    void getReview_whenUnknown_expectNotFound() throws Exception {
+        when(reviewService.getReport(REVIEW_ID)).thenThrow(
+            new NotFoundException("reviewId", REVIEW_ID.toString(), "Review " + REVIEW_ID + " does not exist"));
+
+        mockMvc.perform(get(REVIEWS_PATH + "/" + REVIEW_ID))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.errors[0].code").value(NOT_FOUND.name()))
+            .andExpect(jsonPath("$.errors[0].field").value("reviewId"))
+            .andExpect(jsonPath("$.errors[0].value").value(REVIEW_ID.toString()));
+    }
+
+    @Test
+    void getReview_whenIdNotUuid_expectInvalidValue() throws Exception {
+        mockMvc.perform(get(REVIEWS_PATH + "/abc"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.errors[0].code").value(INVALID_VALUE.name()))
+            .andExpect(jsonPath("$.errors[0].field").value("reviewId"));
     }
 
     private ResultActions uploadWithConfig(MockMultipartFile configRequest) throws Exception {

@@ -146,6 +146,12 @@
                 </dependencies>
                 <configuration>
                     <configLocation>${project.basedir}/checkstyle_rules.xml</configLocation>
+                    <sourceDirectories>
+                        <sourceDirectory>${project.build.sourceDirectory}</sourceDirectory>
+                    </sourceDirectories>
+                    <testSourceDirectories>
+                        <testSourceDirectory>${project.build.testSourceDirectory}</testSourceDirectory>
+                    </testSourceDirectories>
                     <includeTestSourceDirectory>true</includeTestSourceDirectory>
                     <includeResources>false</includeResources>
                     <includeTestResources>false</includeTestResources>

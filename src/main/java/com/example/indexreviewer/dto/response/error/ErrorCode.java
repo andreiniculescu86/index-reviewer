@@ -9,5 +9,6 @@ public enum ErrorCode {
     MALFORMED_JSON,
     INVALID_REQUEST,
     INDEX_NOT_CONFIGURED,
+    NOT_FOUND,
     INTERNAL_ERROR
 }

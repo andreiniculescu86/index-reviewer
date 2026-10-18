@@ -89,6 +89,18 @@ class CsvFileReaderTest {
             .hasMessageContaining("header");
     }
 
+    @ParameterizedTest(name = "{argumentSetName}")
+    @MethodSource("optionalValues")
+    void read_whenSharesAndFreeFloatMissing_expectNull(String content) {
+        byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
+
+        SecurityData row = reader.read(bytes, SecurityData.class).getFirst();
+
+        assertThat(row.getPrice()).isEqualByComparingTo(new BigDecimal("2080"));
+        assertThat(row.getFreeFloat()).isNull();
+        assertThat(row.getShares()).isNull();
+    }
+
     @Test
     void read_whenSeparatorDiffers_expectError() {
         byte[] content = "id,date,price,free_float,shares\n10,2026-09-10,2080,0.6766,309375\n"
@@ -121,16 +133,20 @@ class CsvFileReaderTest {
             Arguments.argumentSet("date not ISO", header + "10;2026/09/10;2080;0.6766;309375\n"),
             Arguments.argumentSet("price with comma", header + "10;2026-09-10;20,80;0.6766;309375\n"),
             Arguments.argumentSet("shares not a number", header + "10;2026-09-10;2080;0.6766;many\n"),
-            Arguments.argumentSet("date empty", header + "10;;2080;0.6766;309375\n"),
-            Arguments.argumentSet("free float empty", header + "10;2026-09-21;;;309375\n"),
-            Arguments.argumentSet("shares empty", header + "10;2026-09-21;;0.6766;\n"));
+            Arguments.argumentSet("date empty", header + "10;;2080;0.6766;309375\n"));
     }
 
     static Stream<Arguments> missingColumns() {
         return Stream.of(
-            Arguments.argumentSet("no date column", "id;price;free_float;shares\n10;2080;0.6766;309375\n"),
-            Arguments.argumentSet("no free float column", "id;date;price;shares\n10;2026-09-10;2080;309375\n"),
-            Arguments.argumentSet("no shares column", "id;date;price;free_float\n10;2026-09-10;2080;0.6766\n"));
+            Arguments.argumentSet("no id column", "date;price;free_float;shares\n2026-09-10;2080;0.6766;309375\n"),
+            Arguments.argumentSet("no date column", "id;price;free_float;shares\n10;2080;0.6766;309375\n"));
+    }
+
+    static Stream<Arguments> optionalValues() {
+        return Stream.of(
+            Arguments.argumentSet("cut-off row with price only", "id;date;price;free_float;shares\n"
+                + "10;2026-09-10;2080;;\n"),
+            Arguments.argumentSet("no free float and shares columns", "id;date;price\n10;2026-09-10;2080\n"));
     }
 
     private static byte[] resource(String path) throws IOException {

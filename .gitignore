@@ -1,6 +1,9 @@
 # Build output
 /target/
 
+# Application log files
+/logs/
+
 # Machine and IDE state
 /.DS_Store
 /.idea/

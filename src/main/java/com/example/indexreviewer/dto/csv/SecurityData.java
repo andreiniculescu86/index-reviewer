@@ -22,9 +22,9 @@ public class SecurityData {
     @CsvBindByName(column = "price")
     private BigDecimal price;
 
-    @CsvBindByName(column = "free_float", required = true)
+    @CsvBindByName(column = "free_float")
     private BigDecimal freeFloat;
 
-    @CsvBindByName(column = "shares", required = true)
+    @CsvBindByName(column = "shares")
     private BigDecimal shares;
 }
