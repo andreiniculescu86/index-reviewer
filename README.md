@@ -105,7 +105,6 @@ For the assignment files the review returns `201` with this report (shortened):
       "weight": 14.2591,
       "cappingFactor": 1.0000000000
     },
-    ...
     {
       "securityId": 81,
       "weight": 0.8503,
