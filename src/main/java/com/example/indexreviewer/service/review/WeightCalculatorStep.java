@@ -10,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -24,8 +23,8 @@ import java.util.stream.IntStream;
  * capped component loses goes to the components below the cap in proportion to their FFMCAP, in rounds until no
  * weight exceeds the cap. Weights are percentages of the index, 18 for 18%, with 4 decimals. They are rounded with the
  * largest remainder method, so every weight stays within 0.0001 of its exact value and the weights add up to exactly
- * 100. The capping factor is 1 for a component that is not capped and below 1 for a capped one, with 10 significant
- * digits, so that FFMCAP x capping factor reproduces the weights. The rounds, the rounding and the capping factor
+ * 100. The capping factor is 1 for a component that is not capped and below 1 for a capped one, with 10 decimals, so
+ * that FFMCAP x capping factor reproduces the weights. The rounds, the rounding and the capping factor
  * formula are assumptions, described in docs/methodology.md.
  */
 @Slf4j
@@ -33,12 +32,9 @@ import java.util.stream.IntStream;
 public class WeightCalculatorStep {
 
     private static final BigDecimal FULL_INDEX_WEIGHT = BigDecimal.valueOf(100);
-    private static final int WEIGHT_DECIMALS = 4;
-    private static final BigDecimal WEIGHT_UNIT = BigDecimal.ONE.movePointLeft(WEIGHT_DECIMALS);
+    private static final BigDecimal WEIGHT_UNIT = new BigDecimal("0.0001");
     private static final int EXACT_DECIMALS = 20;
     private static final int CAPPING_FACTOR_DECIMALS = 10;
-    private static final MathContext CAPPING_FACTOR_PRECISION = new MathContext(10, RoundingMode.HALF_UP);
-    private static final BigDecimal UNCAPPED_FACTOR = BigDecimal.ONE.setScale(CAPPING_FACTOR_DECIMALS);
 
     /**
      * Returns the components in the given order with their weighting factors, the trace records and the findings of
@@ -127,7 +123,7 @@ public class WeightCalculatorStep {
      */
     private static List<BigDecimal> roundToFullIndex(List<BigDecimal> exactWeights) {
         List<BigDecimal> roundedWeights = new ArrayList<>(exactWeights.stream()
-            .map(weight -> weight.setScale(WEIGHT_DECIMALS, RoundingMode.DOWN))
+            .map(weight -> weight.setScale(WEIGHT_UNIT.scale(), RoundingMode.DOWN))
             .toList());
         int missingUnits = FULL_INDEX_WEIGHT.subtract(sumOf(roundedWeights)).divideToIntegralValue(WEIGHT_UNIT)
             .intValue();
@@ -159,9 +155,9 @@ public class WeightCalculatorStep {
                     .securityId(component.getSecurityId())
                     .weight(roundedWeights.get(index))
                     .cappingFactor(cappedSecurityIds.contains(component.getSecurityId())
-                        ? roundCappingFactor(divideExactly(capPercentage.multiply(uncappedTotalFfmcap),
-                        remainingWeight.multiply(component.getFfmcap())))
-                        : UNCAPPED_FACTOR)
+                        ? capPercentage.multiply(uncappedTotalFfmcap).divide(
+                        remainingWeight.multiply(component.getFfmcap()), CAPPING_FACTOR_DECIMALS, RoundingMode.HALF_UP)
+                        : BigDecimal.ONE.setScale(CAPPING_FACTOR_DECIMALS))
                     .build();
             })
             .toList();
@@ -227,15 +223,6 @@ public class WeightCalculatorStep {
             .field("weight")
             .message(message)
             .build();
-    }
-
-    // 10 significant digits keep even a very small capping factor exact enough; at least 10 decimals keep the scale
-    // the same for the usual factors
-    private static BigDecimal roundCappingFactor(BigDecimal exactFactor) {
-        BigDecimal roundedFactor = exactFactor.round(CAPPING_FACTOR_PRECISION);
-        return roundedFactor.scale() < CAPPING_FACTOR_DECIMALS
-            ? roundedFactor.setScale(CAPPING_FACTOR_DECIMALS, RoundingMode.UNNECESSARY)
-            : roundedFactor;
     }
 
     private static BigDecimal divideExactly(BigDecimal dividend, BigDecimal divisor) {

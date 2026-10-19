@@ -172,20 +172,6 @@ class WeightCalculatorStepTest {
         assertThat(result.getFindings()).isEmpty();
     }
 
-    @Test
-    void calculateWeights_whenDominant_expectExactFactor() {
-        List<Candidate> components = new ArrayList<>(List.of(component(1, "10000000000")));
-        components.addAll(IntStream.rangeClosed(2, 20).mapToObj(id -> component(id, "1")).toList());
-
-        WeightResult result = calculator.calculateWeights(components, new BigDecimal("18"));
-
-        assertThat(result.getConstituents().getFirst()).satisfies(constituent -> {
-            assertThat(constituent.getWeight()).isEqualByComparingTo("18");
-            assertThat(constituent.getCappingFactor()).isEqualByComparingTo("4.170731707E-10");
-        });
-        assertThat(result.getFindings()).isEmpty();
-    }
-
     private static Candidate component(int securityId, String ffmcap) {
         return Candidate.builder()
             .securityId(securityId)

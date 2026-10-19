@@ -58,7 +58,7 @@ require is described in [Methodology](methodology.md).
   *Why:* the rulebook gives no formula; it is in a separate SIX calculation rulebook. Formula in
   [Methodology](methodology.md#assumptions).
 
-- **A5. Weights have 4 decimals (`18.0000` = 18%); capping factors have 10 significant digits** (`0.5653526015`).
+- **A5. Weights have 4 decimals (`18.0000` = 18%); capping factors have 10 decimals** (`0.5653526015`).
 
   *Why:* no precision is given; 0.0001% is far below any meaningful weight difference. The factor needs more digits:
   with 4 decimals, `FFMCAP x capping factor` would give security 155 18.0014% instead of 18%.

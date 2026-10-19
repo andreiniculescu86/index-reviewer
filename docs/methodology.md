@@ -153,7 +153,7 @@ From the assignment and the rulebook (sections 2.1, 5.12.4):
 - the cut weight goes to the other components in proportion to their weight.
 
 Weights are percentages, `18` for 18%, with 4 decimals, and add up to exactly 100. Capping factors have 10
-significant digits.
+decimals.
 
 ### Assumptions
 
@@ -166,8 +166,8 @@ The rulebook gives no formula. It is in a separate SIX calculation rulebook that
    equals the proportional sharing, without rounding errors adding up over rounds.
 3. **Capping factor.** 1 when not capped. When capped: `cap x FFMCAP of all uncapped / (remaining weight x FFMCAP)`.
    `FFMCAP x capping factor` is the capped market capitalization; divided by the sum over all components it gives the
-   weight. The scale is a convention: 1 means "not capped". The factor has 10 significant digits (`0.5653526015`), so
-   that `FFMCAP x capping factor` reproduces the weights to well below 0.0001.
+   weight. The scale is a convention: 1 means "not capped". The factor has 10 decimals (`0.5653526015`), so that
+   `FFMCAP x capping factor` reproduces the weights to well below 0.0001.
 4. **Largest remainder rounding.** Every weight is rounded down to 4 decimals. The 0.0001 units still missing to 100
    go one each to the weights with the largest rounding remainders; on equal remainders the higher rank goes first.
    Every weight stays within 0.0001 of its exact value, and the weights add up to exactly 100.
