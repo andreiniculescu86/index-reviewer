@@ -3,8 +3,8 @@
 The Index Reviewer is a Spring Boot REST service that runs an ordinary index review. A client uploads the input data
 as 3 CSV files; the service validates the data, selects the index components, weights and caps them, and returns a
 review report. Every review is stored with an audit record and a trace, so that its result and the reasons behind it
-can be read again later. The SMI is the only configured index, but the review logic is built so that other indices
-and review dates can be added without changing the API or the services.
+can be read again later. The SMI is the only configured index. An index of the same shape, ranked by FFMCAP and
+selected with a buffer, is added through configuration only; review dates come with each request.
 
 The design follows four goals:
 
@@ -65,9 +65,9 @@ memory of the running instance.
         |                                                                 +-------------------------------+
         v                                                                                 ^
 +------------------------------------------------------------------+                      |
-| SmiReviewer                                                      | ---------------------+
-| runs the steps with the SMI rules, stores the trace and findings |   trace after each step,
-| of each step, then the audit record                              |   audit record at the end
+| RankedIndexReviewer                                              | ---------------------+
+| runs the steps with the rules of the requested index, stores the |   trace after each step,
+| trace and findings of each step, then the audit record           |   audit record at the end
 +------------------------------------------------------------------+
         | calls the steps in order; each returns result, trace records and findings
         v
@@ -82,7 +82,7 @@ memory of the running instance.
 |----------------|------------------------------------------------|-------------------------------------------------|
 | API layer      | `controller`, `dto`, `validation`, `exception` | HTTP contract, request checks, errors           |
 | Review service | `service`                                      | Routes a review to its index; reads reviews     |
-| Index reviewer | `service.index`                                | Runs the steps of one index, records results    |
+| Index reviewer | `service.index`                                | Runs the steps for each configured index        |
 | Review steps   | `service.review`                               | Calculations returning result, trace, findings  |
 | Models         | `model`                                        | Command, candidates, report, audit, trace       |
 | Repositories   | `repository`                                   | CSV parsing and review store, behind interfaces |
@@ -102,12 +102,12 @@ POST /v1/reviews
 API layer: read and check the request (files present and CSV, dates in order, separator, index)
    |
    v
-SmiReviewer, new review id
+RankedIndexReviewer: rules of the requested index, new review id
    |
    |   stage                                   stored in the trace                stops on
    |   --------------------------------------  ---------------------------------  ------------------------------
    +-> 1. check the input                      findings                           dates missing in the files,
-   |                                                                              composition not 20 securities
+   |                                                                              composition of the wrong size 
    +-> 2. calculate FFMCAP per security        price, shares, free float, FFMCAP, invalid or conflicting values,
    |      and check there are enough           eligibility, findings              fewer than 20 eligible
    +-> 3. rank and select with the buffer      rank, selection decision,          selection not 20 components
@@ -187,16 +187,18 @@ explanation can never disagree. The models are described in the [API reference](
 
 ## Extension points
 
-| Change                          | What to add                                                    | Unchanged       |
-|---------------------------------|----------------------------------------------------------------|-----------------|
-| Another index, e.g. the SLI     | `IndexType` value, rules in `application.yml`, `IndexReviewer` | API, steps      |
-| Another review period           | New data files and dates in the request                        | Everything      |
-| Another rule, e.g. a tiered cap | A new step, used by that index's reviewer                      | Existing steps  |
-| A database                      | Implementations of the 2 repository interfaces                 | Services, steps |
-| Another input format            | A `FileReader` implementation, DTOs and request parts          | Services, steps |
+| Change                                     | What to add                                        | Unchanged       |
+|--------------------------------------------|----------------------------------------------------|-----------------|
+| Index of the same shape, e.g. SMI Expanded | `IndexType` value, YAML block under `indices`      | Logic, API      |
+| Index with other rules, e.g. the SLI cap   | New step or capping logic, own reviewer if needed  | API, service    |
+| Another review period                      | New data files and dates in the request            | Everything      |
+| A database                                 | Implementations of the 2 repository interfaces     | Services, steps |
+| Another input format                       | A `FileReader` implementation, DTOs, request parts | Services, steps |
 
-The shared index rules describe one size, one direct selection rank, one buffer and one cap. Indices that follow this
-pattern reuse the steps; an index with a tiered cap, equal weights or other eligibility rules adds its own steps.
+The index rules describe one size, one direct selection rank, one buffer and one cap. Every index that follows this
+pattern is reviewed by `RankedIndexReviewer`; the steps are listed in
+[Adding an index](methodology.md#adding-an-index). An index with a tiered cap, equal weights or other eligibility
+rules needs its own steps.
 
 ## Constraints
 

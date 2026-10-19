@@ -4,9 +4,14 @@ import com.example.indexreviewer.model.IndexType;
 import com.example.indexreviewer.model.ReviewCommand;
 import com.example.indexreviewer.model.report.ReviewReport;
 
+import java.util.Set;
+
 public interface IndexReviewer {
 
-    IndexType indexType();
+    /**
+     * Returns the index types this reviewer reviews.
+     */
+    Set<IndexType> indexTypes();
 
     /**
      * Runs the review under a new review id, created by the implementation, and returns its report. The trace is stored

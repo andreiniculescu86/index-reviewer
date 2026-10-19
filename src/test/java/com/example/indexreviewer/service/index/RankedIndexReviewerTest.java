@@ -1,4 +1,4 @@
-package com.example.indexreviewer.service.index.smi;
+package com.example.indexreviewer.service.index;
 
 import com.example.indexreviewer.model.Candidate;
 import com.example.indexreviewer.model.IndexType;
@@ -17,8 +17,6 @@ import com.example.indexreviewer.model.trace.SelectionDecision;
 import com.example.indexreviewer.model.trace.Severity;
 import com.example.indexreviewer.repository.memory.InMemoryReviewAuditRepository;
 import com.example.indexreviewer.repository.memory.InMemoryReviewTraceRepository;
-import com.example.indexreviewer.service.index.IndexConfiguration;
-import com.example.indexreviewer.service.index.IndexesConfiguration;
 import com.example.indexreviewer.service.review.ComponentSelectorStep;
 import com.example.indexreviewer.service.review.FfmcapCalculatorStep;
 import com.example.indexreviewer.service.review.ReviewDataValidator;
@@ -43,7 +41,7 @@ import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.assignme
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
-class SmiReviewerTest {
+class RankedIndexReviewerTest {
 
     private static final LocalDate CUTOFF_DATE = LocalDate.of(2026, 9, 10);
     private static final LocalDate REVIEW_DATE = LocalDate.of(2026, 9, 21);
@@ -55,13 +53,13 @@ class SmiReviewerTest {
     private final ReviewDataValidator reviewDataValidator = new ReviewDataValidator();
     private final FfmcapCalculatorStep ffmcapCalculatorStep =
         new FfmcapCalculatorStep(new SecurityRecordValidator());
-    private final SmiReviewer review = reviewer(ffmcapCalculatorStep, new WeightCalculatorStep());
+    private final RankedIndexReviewer review = reviewer(ffmcapCalculatorStep, new WeightCalculatorStep());
 
     @Test
-    void indexType_whenAsked_expectSmi() {
-        IndexType indexType = review.indexType();
+    void indexTypes_whenSmiConfigured_expectSmi() {
+        Set<IndexType> indexTypes = review.indexTypes();
 
-        assertThat(indexType).isEqualTo(IndexType.SMI);
+        assertThat(indexTypes).containsExactly(IndexType.SMI);
     }
 
     @Test
@@ -239,7 +237,7 @@ class SmiReviewerTest {
                     .build();
             }
         };
-        SmiReviewer reviewer = reviewer(ffmcapCalculatorStep, failingWeights);
+        RankedIndexReviewer reviewer = reviewer(ffmcapCalculatorStep, failingWeights);
         ReviewCommand command = command(validRows(25), CURRENT_SMI);
 
         ReviewReport report = reviewer.review(command);
@@ -255,8 +253,9 @@ class SmiReviewerTest {
 
     @Test
     void review_whenSelectionTooSmall_expectFailedWithTrace() {
-        SmiReviewer reviewer = new SmiReviewer(smiConfiguration(19), reviewDataValidator, ffmcapCalculatorStep,
-            new ComponentSelectorStep(), new WeightCalculatorStep(), auditRepository, traceRepository, APP_VERSION);
+        RankedIndexReviewer reviewer = new RankedIndexReviewer(smiConfiguration(19), reviewDataValidator,
+            ffmcapCalculatorStep, new ComponentSelectorStep(), new WeightCalculatorStep(), auditRepository,
+            traceRepository, APP_VERSION);
         ReviewCommand command = command(validRows(25), CURRENT_SMI);
 
         ReviewReport report = reviewer.review(command);
@@ -310,8 +309,9 @@ class SmiReviewerTest {
             BigDecimal::add)).isEqualByComparingTo("100");
     }
 
-    private SmiReviewer reviewer(FfmcapCalculatorStep ffmcapCalculatorStep, WeightCalculatorStep weightCalculatorStep) {
-        return new SmiReviewer(CONFIGURATION, reviewDataValidator, ffmcapCalculatorStep,
+    private RankedIndexReviewer reviewer(FfmcapCalculatorStep ffmcapCalculatorStep,
+                                         WeightCalculatorStep weightCalculatorStep) {
+        return new RankedIndexReviewer(CONFIGURATION, reviewDataValidator, ffmcapCalculatorStep,
             new ComponentSelectorStep(), weightCalculatorStep, auditRepository, traceRepository, APP_VERSION);
     }
 

@@ -17,7 +17,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -30,7 +29,9 @@ public class ReviewService {
 
     public ReviewService(List<IndexReviewer> implementations, ReviewAuditRepository auditRepository,
                          ReviewTraceRepository traceRepository) {
-        reviews = implementations.stream().collect(Collectors.toMap(IndexReviewer::indexType, Function.identity()));
+        reviews = implementations.stream()
+            .flatMap(reviewer -> reviewer.indexTypes().stream().map(indexType -> Map.entry(indexType, reviewer)))
+            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         this.auditRepository = auditRepository;
         this.traceRepository = traceRepository;
     }

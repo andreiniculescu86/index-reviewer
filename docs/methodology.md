@@ -9,6 +9,7 @@ See also [Data validation](data-validation.md) and [Traceability and audit](trac
 ## Contents
 
 - [Configuration](#configuration)
+  - [Adding an index](#adding-an-index)
 - [Dates](#dates)
 - [Eligibility](#eligibility)
 - [FFMCAP](#ffmcap)
@@ -22,7 +23,8 @@ See also [Data validation](data-validation.md) and [Traceability and audit](trac
 
 ## Configuration
 
-The index rules are in [application.yml](../src/main/resources/application.yml).
+The index rules are in [application.yml](../src/main/resources/application.yml), one block per index under
+`indices`. The SMI block:
 
 | Property                | SMI  | Rulebook                      |
 |-------------------------|------|-------------------------------|
@@ -42,6 +44,34 @@ The application does not start when:
 
 - `direct-selection-rank` > `number-of-components`, or `number-of-components` > `buffer-rank`;
 - `number-of-components` x `cap-percentage` < 100, because the weights could then not meet the cap.
+
+These checks run for every configured index.
+
+### Adding an index
+
+An index that is ranked by FFMCAP, selected with a buffer and weighted by FFMCAP with one cap for all components is
+added without code logic changes. Examples from the rulebook:
+
+| Index        | Size | Direct | Buffer up to | Cap                          |
+|--------------|------|--------|--------------|------------------------------|
+| SMI Expanded | 50   | 47     | 53           | none (`cap-percentage: 100`) |
+| UBS 100      | 100  | 100    | 100          | none (`cap-percentage: 100`) |
+| SPI 20       | 20   | 18     | 22           | none (`cap-percentage: 100`) |
+
+UBS 100 has no buffer, so its direct selection rank and buffer rank both equal its size.
+
+1. Add the index to [IndexType](../src/main/java/com/example/indexreviewer/model/IndexType.java), for example
+   `SMI_EXPANDED`.
+2. Add its block under `indices` in `application.yml` with the 5 properties above. Write the key in lower case with
+   `-` between words, for example `smi-expanded:` for `SMI_EXPANDED`.
+3. Add tests: one that the block binds to the enum value and passes the startup checks, and one review with data for
+   that index, whose composition has exactly `number-of-components` securities.
+
+`RankedIndexReviewer` reviews every configured index; `ReviewService`, the steps, the API, the audit record and the
+trace stay unchanged. A request selects the index with `indexType`.
+
+Indices with other rules need code: the SLI caps its 4 largest components at 9% and the others at 4.5%, and SMIM,
+SPI Extra and SPI ex SLI are derived from other indices. See [Not implemented](#not-implemented).
 
 ## Dates
 
@@ -112,7 +142,7 @@ Every security in the trace gets one decision:
 the 2 seats. The newcomers are not selected.
 
 **Q3 2026 result.** Existing components 160 and 81 on ranks 21 and 22 stay, ahead of newcomers 249 and 28 on ranks 19
-and 20. Security 177 joins on rank 7, security 103 leaves. `SmiReviewerTest` checks this.
+and 20. Security 177 joins on rank 7, security 103 leaves. `RankedIndexReviewerTest` checks this.
 
 ## Weighting and capping
 
@@ -159,7 +189,7 @@ Capping factors: A `35 x 20 / (30 x 50) = 0.4666666667`, B `35 x 20 / (30 x 30) 
 **Q3 2026 result.** Securities 155 and 205 weigh 25.42% and 23.49% before capping. Both are capped at 18%, with
 capping factors 0.5653526015 and 0.6117362279. Rounded down, the weights add up to 99.9991%; the 9 missing units of
 0.0001 go to the 9 weights with the largest remainders, for example security 63 ends at 14.2591% (exact 14.259043%).
-`SmiReviewerTest` checks this.
+`RankedIndexReviewerTest` checks this.
 
 ## Joiners and leavers
 
@@ -172,3 +202,6 @@ capping factors 0.5653526015 and 0.6117362279. Rounded down, the weights add up 
 - **Liquidity rule for multiple primary listings** (section 5.12.3.2): the data has no turnover.
 - **Selection list** (section 4.3): the assignment ranks by FFMCAP only, not by 12-month FFMCAP and turnover.
 - **Capping between reviews** (section 5.12.4): only the review itself is in scope.
+- **Other indices**: only the SMI is configured. Indices of the same shape are added by configuration, see
+  [Adding an index](#adding-an-index). Indices with a tiered cap (SLI), derived from other indices (SMIM, SPI Extra,
+  SPI ex SLI) or based on other data (ESG, dividends) need new steps.

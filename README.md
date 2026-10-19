@@ -144,7 +144,8 @@ For the assignment files the review returns `201` with this report (shortened):
 ### Index, dates and separator
 
 The optional `configRequest` part sets the index, the dates and the CSV separator. Without it, the review uses SMI,
-cut-off date 2026-09-10, review date 2026-09-21 and `;`. Currently, only SMI is supported.
+cut-off date 2026-09-10, review date 2026-09-21 and `;`. Currently, only SMI is configured; other indices of the
+same shape are added by configuration, see [Adding an index](docs/methodology.md#adding-an-index).
 
 ```bash
 curl -F 'configRequest={"indexType":"SMI","cutoffDate":"2026-09-10","reviewDate":"2026-09-21"}' \

@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static com.example.indexreviewer.fixture.ReviewExecutionFixtures.CAPPED_COMPONENT;
@@ -60,7 +61,7 @@ class ReviewServiceTest {
 
     @Test
     void runReview_whenIndexConfigured_expectReviewReport() {
-        when(smiReview.indexType()).thenReturn(IndexType.SMI);
+        when(smiReview.indexTypes()).thenReturn(Set.of(IndexType.SMI));
         when(smiReview.review(SMI_COMMAND)).thenReturn(ReviewReport.failed(REVIEW_ID));
         when(traceRepository.findByReviewId(REVIEW_ID)).thenReturn(trace(List.of(), List.of(COMPOSITION_SIZE)));
         ReviewService service = new ReviewService(List.of(smiReview), auditRepository, traceRepository);
@@ -76,7 +77,7 @@ class ReviewServiceTest {
 
     @Test
     void runReview_whenReviewThrows_expectException() {
-        when(smiReview.indexType()).thenReturn(IndexType.SMI);
+        when(smiReview.indexTypes()).thenReturn(Set.of(IndexType.SMI));
         when(smiReview.review(SMI_COMMAND)).thenThrow(new IllegalStateException("step failed"));
         ReviewService service = new ReviewService(List.of(smiReview), auditRepository, traceRepository);
 

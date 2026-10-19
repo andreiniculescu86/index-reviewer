@@ -132,12 +132,14 @@ require is described in [Methodology](methodology.md).
 
   *Why:* the request was valid, the data was not, and a failed review must stay traceable.
 
-- **D4. One reviewer per index, with shared steps.** Each step takes the index rules and returns its result, trace
-  records and findings. *Instead of* a rule engine.
+- **D4. One reviewer for all indices of the same shape, with shared steps.** `RankedIndexReviewer` reviews every
+  index configured under `indices`; each step takes that index's rules and returns its result, trace records and
+  findings. *Instead of* one reviewer class per index, or a rule engine.
 
-  *Why:* a new index adds a reviewer; the API, the service and the steps stay unchanged.
+  *Why:* an index of the same shape is added with an enum value and a YAML block, without code logic changes. An index
+  with other rules gets its own reviewer next to it.
 
-- **D5. Index rules in `application.yml`**, checked at startup. *Instead of* constants in code.
+- **D5. Index rules in `application.yml`**, one block per index, checked at startup. *Instead of* constants in code.
 
   *Why:* rules change with the rulebook; a wrong rule stops the start instead of producing a wrong index.
 

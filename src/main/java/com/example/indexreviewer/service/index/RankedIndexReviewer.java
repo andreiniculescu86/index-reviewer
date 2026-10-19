@@ -1,4 +1,4 @@
-package com.example.indexreviewer.service.index.smi;
+package com.example.indexreviewer.service.index;
 
 import com.example.indexreviewer.model.Candidate;
 import com.example.indexreviewer.model.FfmcapResult;
@@ -14,8 +14,6 @@ import com.example.indexreviewer.model.report.ReviewReport;
 import com.example.indexreviewer.model.trace.Finding;
 import com.example.indexreviewer.repository.ReviewAuditRepository;
 import com.example.indexreviewer.repository.ReviewTraceRepository;
-import com.example.indexreviewer.service.index.IndexReviewer;
-import com.example.indexreviewer.service.index.IndexesConfiguration;
 import com.example.indexreviewer.service.review.ComponentSelectorStep;
 import com.example.indexreviewer.service.review.FfmcapCalculatorStep;
 import com.example.indexreviewer.service.review.ReviewDataValidator;
@@ -26,10 +24,12 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
- * Reviews the SMI. The validators and steps only return their results; this class stores the findings and trace
+ * Reviews every configured index that is ranked by FFMCAP, selected with a buffer and weighted by FFMCAP with a
+ * cap, such as the SMI. The validators and steps only return their results; this class stores the findings and trace
  * records of every validation and step as soon as it is done. A stage that finds errors ends the review, and the trace
  * keeps everything calculated until then, so that a failed review can be traced as well. The audit record is stored at
  * the end, with status ERROR when a step throws. The report is built from the step results, not read back from the
@@ -37,7 +37,7 @@ import java.util.UUID;
  */
 @Slf4j
 @Component
-public class SmiReviewer implements IndexReviewer {
+public class RankedIndexReviewer implements IndexReviewer {
 
     private final IndexesConfiguration configuration;
     private final ReviewDataValidator reviewDataValidator;
@@ -48,11 +48,11 @@ public class SmiReviewer implements IndexReviewer {
     private final ReviewTraceRepository traceRepository;
     private final String appVersion;
 
-    public SmiReviewer(IndexesConfiguration configuration, ReviewDataValidator reviewDataValidator,
-                       FfmcapCalculatorStep ffmcapCalculatorStep, ComponentSelectorStep componentSelectorStep,
-                       WeightCalculatorStep weightCalculatorStep, ReviewAuditRepository auditRepository,
-                       ReviewTraceRepository traceRepository,
-                       @Value("${spring.application.version}") String appVersion) {
+    public RankedIndexReviewer(IndexesConfiguration configuration, ReviewDataValidator reviewDataValidator,
+                               FfmcapCalculatorStep ffmcapCalculatorStep, ComponentSelectorStep componentSelectorStep,
+                               WeightCalculatorStep weightCalculatorStep, ReviewAuditRepository auditRepository,
+                               ReviewTraceRepository traceRepository,
+                               @Value("${spring.application.version}") String appVersion) {
         this.configuration = configuration;
         this.reviewDataValidator = reviewDataValidator;
         this.ffmcapCalculatorStep = ffmcapCalculatorStep;
@@ -64,8 +64,8 @@ public class SmiReviewer implements IndexReviewer {
     }
 
     @Override
-    public IndexType indexType() {
-        return IndexType.SMI;
+    public Set<IndexType> indexTypes() {
+        return configuration.indices().keySet();
     }
 
     @Override
