@@ -8,6 +8,6 @@ import java.math.BigDecimal;
 public record IndexRulesResponse(int numberOfComponents, int directSelectionRank, int bufferRank,
                                  BigDecimal capPercentage,
                                  @Schema(description = "Version of the index methodology the rules come from.",
-                                     example = "SIX Swiss Index Methodology Rulebook 3.40, 08.06.2026")
+                                     example = "rulebook-v3.40, 08.06.2026")
                                  String methodologyVersion) {
 }

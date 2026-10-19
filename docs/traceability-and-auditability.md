@@ -53,7 +53,7 @@ failed after the FFMCAP step. Id: `51b43dce-e920-4416-80f8-50f846df339a`.
     "directSelectionRank": 18,
     "bufferRank": 22,
     "capPercentage": 18,
-    "methodologyVersion": "SIX Swiss Index Methodology Rulebook 3.40, 08.06.2026"
+    "methodologyVersion": "rulebook-v3.40, 08.06.2026"
   },
   "composition": []
 }

@@ -16,7 +16,7 @@ indices:
     direct-selection-rank: 18
     buffer-rank: 22
     cap-percentage: 18
-    methodology-version: SIX Swiss Index Methodology Rulebook 3.40, 08.06.2026
+    methodology-version: rulebook-v3.40, 08.06.2026
 
 springdoc:
   swagger-ui:
