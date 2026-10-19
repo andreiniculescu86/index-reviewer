@@ -6,6 +6,7 @@ import com.example.indexreviewer.model.ReviewCommand;
 import com.example.indexreviewer.model.ReviewStatus;
 import com.example.indexreviewer.model.Security;
 import com.example.indexreviewer.model.WeightResult;
+import com.example.indexreviewer.model.audit.IndexRules;
 import com.example.indexreviewer.model.audit.ReviewAudit;
 import com.example.indexreviewer.model.report.Constituent;
 import com.example.indexreviewer.model.report.ReviewReport;
@@ -17,11 +18,13 @@ import com.example.indexreviewer.model.trace.SelectionDecision;
 import com.example.indexreviewer.model.trace.Severity;
 import com.example.indexreviewer.repository.memory.InMemoryReviewAuditRepository;
 import com.example.indexreviewer.repository.memory.InMemoryReviewTraceRepository;
-import com.example.indexreviewer.service.review.ComponentSelectorStep;
+import com.example.indexreviewer.service.review.ComponentSelectorStepImpl;
 import com.example.indexreviewer.service.review.FfmcapCalculatorStep;
+import com.example.indexreviewer.service.review.FfmcapCalculatorStepImpl;
 import com.example.indexreviewer.service.review.ReviewDataValidator;
 import com.example.indexreviewer.service.review.SecurityRecordValidator;
 import com.example.indexreviewer.service.review.WeightCalculatorStep;
+import com.example.indexreviewer.service.review.WeightCalculatorStepImpl;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -52,8 +55,8 @@ class RankedIndexReviewerTest {
     private final InMemoryReviewTraceRepository traceRepository = new InMemoryReviewTraceRepository();
     private final ReviewDataValidator reviewDataValidator = new ReviewDataValidator();
     private final FfmcapCalculatorStep ffmcapCalculatorStep =
-        new FfmcapCalculatorStep(new SecurityRecordValidator());
-    private final RankedIndexReviewer review = reviewer(ffmcapCalculatorStep, new WeightCalculatorStep());
+        new FfmcapCalculatorStepImpl(new SecurityRecordValidator());
+    private final RankedIndexReviewer review = reviewer(ffmcapCalculatorStep, new WeightCalculatorStepImpl());
 
     @Test
     void indexTypes_whenSmiConfigured_expectSmi() {
@@ -224,9 +227,9 @@ class RankedIndexReviewerTest {
 
     @Test
     void review_whenWeightsHaveError_expectFailed() {
-        WeightCalculatorStep failingWeights = new WeightCalculatorStep() {
+        WeightCalculatorStep failingWeights = new WeightCalculatorStepImpl() {
             @Override
-            public WeightResult calculateWeights(List<Candidate> components, BigDecimal capPercentage) {
+            public WeightResult calculateWeights(List<Candidate> components, IndexRules rules) {
                 return WeightResult.builder()
                     .constituents(List.of())
                     .traces(List.of())
@@ -254,7 +257,7 @@ class RankedIndexReviewerTest {
     @Test
     void review_whenSelectionTooSmall_expectFailedWithTrace() {
         RankedIndexReviewer reviewer = new RankedIndexReviewer(smiConfiguration(19), reviewDataValidator,
-            ffmcapCalculatorStep, new ComponentSelectorStep(), new WeightCalculatorStep(), auditRepository,
+            ffmcapCalculatorStep, new ComponentSelectorStepImpl(), new WeightCalculatorStepImpl(), auditRepository,
             traceRepository, APP_VERSION);
         ReviewCommand command = command(validRows(25), CURRENT_SMI);
 
@@ -312,7 +315,7 @@ class RankedIndexReviewerTest {
     private RankedIndexReviewer reviewer(FfmcapCalculatorStep ffmcapCalculatorStep,
                                          WeightCalculatorStep weightCalculatorStep) {
         return new RankedIndexReviewer(CONFIGURATION, reviewDataValidator, ffmcapCalculatorStep,
-            new ComponentSelectorStep(), weightCalculatorStep, auditRepository, traceRepository, APP_VERSION);
+            new ComponentSelectorStepImpl(), weightCalculatorStep, auditRepository, traceRepository, APP_VERSION);
     }
 
     private ReviewAudit storedAudit(UUID reviewId) {

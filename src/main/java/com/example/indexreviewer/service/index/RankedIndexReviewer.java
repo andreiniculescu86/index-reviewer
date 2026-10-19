@@ -150,7 +150,7 @@ public class RankedIndexReviewer implements IndexReviewer {
     }
 
     private WeightResult calculateWeights(UUID reviewId, List<Candidate> components, IndexRules rules) {
-        var weights = weightCalculatorStep.calculateWeights(components, rules.getCapPercentage());
+        var weights = weightCalculatorStep.calculateWeights(components, rules);
         traceRepository.appendWeights(reviewId, weights.getTraces());
         traceRepository.appendFindings(reviewId, weights.getFindings());
         return weights;

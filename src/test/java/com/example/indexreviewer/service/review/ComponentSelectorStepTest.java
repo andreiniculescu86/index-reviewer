@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.tuple;
 
 class ComponentSelectorStepTest {
 
-    private final ComponentSelectorStep selector = new ComponentSelectorStep();
+    private final ComponentSelectorStep selector = new ComponentSelectorStepImpl();
 
     @Test
     void select_whenNoExistingComponents_expectTopRanked() {

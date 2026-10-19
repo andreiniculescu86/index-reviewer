@@ -2,6 +2,7 @@ package com.example.indexreviewer.service.review;
 
 import com.example.indexreviewer.model.Candidate;
 import com.example.indexreviewer.model.WeightResult;
+import com.example.indexreviewer.model.audit.IndexRules;
 import com.example.indexreviewer.model.report.Constituent;
 import com.example.indexreviewer.model.trace.FindingCode;
 import com.example.indexreviewer.model.trace.WeightTrace;
@@ -18,13 +19,13 @@ class WeightCalculatorStepTest {
 
     private static final BigDecimal HALF = new BigDecimal("50");
 
-    private final WeightCalculatorStep calculator = new WeightCalculatorStep();
+    private final WeightCalculatorStep calculator = new WeightCalculatorStepImpl();
 
     @Test
     void calculateWeights_whenAboveCap_expectRedistributed() {
         List<Candidate> components = List.of(component(1, "600"), component(2, "300"), component(3, "100"));
 
-        WeightResult result = calculator.calculateWeights(components, HALF);
+        WeightResult result = calculator.calculateWeights(components, capRules(HALF));
 
         assertThat(result.getConstituents()).extracting(Constituent::getSecurityId).containsExactly(1, 2, 3);
         assertThat(result.getTraces()).extracting(WeightTrace::getWeight)
@@ -40,7 +41,7 @@ class WeightCalculatorStepTest {
     void calculateWeights_whenWeighted_expectFixedScales() {
         List<Candidate> components = List.of(component(1, "600"), component(2, "300"), component(3, "100"));
 
-        WeightResult result = calculator.calculateWeights(components, HALF);
+        WeightResult result = calculator.calculateWeights(components, capRules(HALF));
 
         assertThat(result.getConstituents()).extracting(Constituent::getWeight).extracting(BigDecimal::scale)
             .containsOnly(4);
@@ -53,7 +54,7 @@ class WeightCalculatorStepTest {
     void calculateWeights_whenWeightEqualsCap_expectNotCapped() {
         List<Candidate> components = List.of(component(1, "500"), component(2, "300"), component(3, "200"));
 
-        WeightResult result = calculator.calculateWeights(components, HALF);
+        WeightResult result = calculator.calculateWeights(components, capRules(HALF));
 
         assertThat(result.getConstituents()).extracting(Constituent::getWeight)
             .usingElementComparator(BigDecimal::compareTo)
@@ -69,7 +70,7 @@ class WeightCalculatorStepTest {
         List<Candidate> components = List.of(component(1, "8928.00"), component(2, "8438.75"),
             component(3, "7860.93"), component(4, "7235.20"), component(5, "6562.50"));
 
-        WeightResult result = calculator.calculateWeights(components, new BigDecimal("21"));
+        WeightResult result = calculator.calculateWeights(components, capRules(new BigDecimal("21")));
 
         assertThat(result.getConstituents()).extracting(Constituent::getWeight)
             .usingElementComparator(BigDecimal::compareTo)
@@ -86,7 +87,7 @@ class WeightCalculatorStepTest {
     void calculateWeights_whenAllBelowCap_expectFfmcapWeights() {
         List<Candidate> components = List.of(component(1, "400"), component(2, "350"), component(3, "250"));
 
-        WeightResult result = calculator.calculateWeights(components, HALF);
+        WeightResult result = calculator.calculateWeights(components, capRules(HALF));
 
         assertThat(result.getTraces()).extracting(WeightTrace::getWeight)
             .usingElementComparator(BigDecimal::compareTo)
@@ -102,7 +103,7 @@ class WeightCalculatorStepTest {
         List<Candidate> components = List.of(component(1, "400"), component(2, "300"), component(3, "200"),
             component(4, "100"));
 
-        WeightResult result = calculator.calculateWeights(components, new BigDecimal("25"));
+        WeightResult result = calculator.calculateWeights(components, capRules(new BigDecimal("25")));
 
         assertThat(result.getConstituents()).extracting(Constituent::getWeight)
             .usingElementComparator(BigDecimal::compareTo)
@@ -118,7 +119,7 @@ class WeightCalculatorStepTest {
     void calculateWeights_whenCapTooLow_expectInvalid() {
         List<Candidate> components = List.of(component(1, "400"), component(2, "350"), component(3, "250"));
 
-        WeightResult result = calculator.calculateWeights(components, new BigDecimal("30"));
+        WeightResult result = calculator.calculateWeights(components, capRules(new BigDecimal("30")));
 
         assertThat(result.getConstituents()).extracting(Constituent::getWeight)
             .usingElementComparator(BigDecimal::compareTo)
@@ -133,7 +134,7 @@ class WeightCalculatorStepTest {
     void calculateWeights_whenThirds_expectFirstRaised() {
         List<Candidate> components = List.of(component(1, "100"), component(2, "100"), component(3, "100"));
 
-        WeightResult result = calculator.calculateWeights(components, HALF);
+        WeightResult result = calculator.calculateWeights(components, capRules(HALF));
 
         assertThat(result.getConstituents()).extracting(Constituent::getWeight)
             .usingElementComparator(BigDecimal::compareTo)
@@ -146,7 +147,7 @@ class WeightCalculatorStepTest {
         List<Candidate> components = List.of(component(1, "100"), component(2, "100"), component(3, "100"),
             component(4, "100"), component(5, "100"), component(6, "100"));
 
-        WeightResult result = calculator.calculateWeights(components, HALF);
+        WeightResult result = calculator.calculateWeights(components, capRules(HALF));
 
         assertThat(result.getConstituents()).extracting(Constituent::getWeight)
             .usingElementComparator(BigDecimal::compareTo)
@@ -162,7 +163,7 @@ class WeightCalculatorStepTest {
             .toList());
         components.add(component(20, "0.000000001"));
 
-        WeightResult result = calculator.calculateWeights(components, new BigDecimal("18"));
+        WeightResult result = calculator.calculateWeights(components, capRules(new BigDecimal("18")));
 
         assertThat(result.getConstituents()).extracting(Constituent::getWeight)
             .allSatisfy(weight -> assertThat(weight.signum()).isNotNegative());
@@ -170,6 +171,12 @@ class WeightCalculatorStepTest {
         assertThat(result.getConstituents().stream().map(Constituent::getWeight)
             .reduce(BigDecimal.ZERO, BigDecimal::add)).isEqualByComparingTo("100");
         assertThat(result.getFindings()).isEmpty();
+    }
+
+    private static IndexRules capRules(BigDecimal capPercentage) {
+        return IndexRules.builder()
+            .capPercentage(capPercentage)
+            .build();
     }
 
     private static Candidate component(int securityId, String ffmcap) {

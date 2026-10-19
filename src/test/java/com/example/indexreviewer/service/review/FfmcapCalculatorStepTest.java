@@ -29,7 +29,7 @@ class FfmcapCalculatorStepTest {
     private static final LocalDate CUTOFF_DATE = LocalDate.of(2026, 9, 10);
     private static final LocalDate REVIEW_DATE = LocalDate.of(2026, 9, 21);
 
-    private final FfmcapCalculatorStep calculator = new FfmcapCalculatorStep(new SecurityRecordValidator());
+    private final FfmcapCalculatorStep calculator = new FfmcapCalculatorStepImpl(new SecurityRecordValidator());
 
     @Test
     void calculate_whenRowsComplete_expectReviewDateValues() {
