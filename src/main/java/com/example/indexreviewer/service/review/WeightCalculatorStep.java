@@ -171,7 +171,7 @@ public class WeightCalculatorStep {
      * Sanity check of the final weights. Returns an {@code INVALID_WEIGHTS} error for each broken rule: a weight above
      * the cap, a negative weight, weights that do not add up to 100, or capping factors that do not reproduce the
      * weights within 0.0001. A weight above the cap or a total below 100 happens when the number of components x the
-     * cap is below 100, which the SMI configuration rejects at startup.
+     * cap is below 100, which the index configuration rejects at startup.
      */
     private static List<Finding> checkWeights(List<Candidate> selectedComponents, List<Constituent> constituents,
                                               BigDecimal capPercentage) {

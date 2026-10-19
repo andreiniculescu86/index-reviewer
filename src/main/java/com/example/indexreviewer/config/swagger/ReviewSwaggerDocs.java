@@ -29,7 +29,8 @@ public interface ReviewSwaggerDocs {
     @Retention(RetentionPolicy.RUNTIME)
     @Operation(summary = "Run a review using uploaded CSV files",
         description = "Runs the review of the selected index for the given cut-off and review dates. "
-            + "Currently, only the SMI index is allowed. Files are mandatory to be uploaded. A review that fails on "
+            + "Only indices configured in application.yml are allowed, currently SMI. Files are mandatory to be "
+            + "uploaded. A review that fails on "
             + "data errors is stored as well. The response lists the review's findings. A review that stops on an "
             + "unexpected error is stored with status ERROR, and the request ends with an internal error.")
     @ApiResponse(responseCode = "201", description = "Review executed and stored. The body holds the review id.",
