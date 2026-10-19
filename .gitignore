@@ -16,6 +16,6 @@
 /.claude/settings.local.json
 
 # Assignment materials (kept local)
-/assignment-requirements-SIX/
+/assignment-requirements*/
 /.mcp.json
-/docs/assignment-requirements-SIX/
+/docs/assignment-requirements*/

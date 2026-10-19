@@ -38,7 +38,8 @@ require is described in [Methodology](methodology.md).
 
 - **A1. The selection buffer is used.**
 
-  *Why:* the assignment makes it optional; using it keeps current members stable, as SIX does for the SMI.
+  *Why:* the assignment makes it optional; using it keeps current members stable, which is what the
+  rulebook buffer is for.
 
 - **A2. Ties.** Securities with equal FFMCAP are ordered current members first, then in the order of the composition
   file, then newcomers by lower id. A `SELECTION_TIE` warning is added when a tie decides a seat.
@@ -55,7 +56,7 @@ require is described in [Methodology](methodology.md).
 
 - **A4. The capping factor is a multiplier on FFMCAP:** `1` when not capped, below 1 when capped.
 
-  *Why:* the rulebook gives no formula; it is in a separate SIX calculation rulebook. Formula in
+  *Why:* the rulebook gives no formula; it is in a separate calculation rulebook. Formula in
   [Methodology](methodology.md#assumptions).
 
 - **A5. Weights and capping factors have 4 decimals** (`18.0000` = 18%, `0.5654`).

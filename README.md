@@ -1,7 +1,7 @@
 # Index Reviewer
 
-Spring Boot REST API that runs the ordinary SMI index review for Q3 2026, following the SIX Swiss Index Methodology
-Rulebook (section 5.12).
+Spring Boot REST API that runs the ordinary SMI index review for Q3 2026, following the index methodology rulebook
+(section 5.12).
 
 A review takes 3 CSV files: the SPI universe, the security data and the current SMI composition. It then:
 
@@ -17,8 +17,7 @@ The response is the review report: the final constituents with their weights and
 leavers, the review status and the findings behind that status. Every review is stored with an audit record and a
 trace per security, so its result can be explained afterwards.
 
-The assignment, its requirements and the CSV files are in
-[docs/assignment-requirements-SIX](docs/assignment-requirements-SIX).
+The CSV files of the assignment are in [src/test/resources/data](src/test/resources/data).
 
 Note: The Markdown documentation is structured primarily to support the review of this home assignment.
 In a production project, some of this information would be organized and maintained differently.
@@ -69,12 +68,12 @@ Swagger UI is also available: http://localhost:8096/. It documents every endpoin
 
 Use the Swagger UI at http://localhost:8096/ (easiest) or the command line.
 Send the 3 files as multipart form data. The input files of the assignment are in
-[docs/assignment-requirements-SIX](docs/assignment-requirements-SIX).
+[src/test/resources/data](src/test/resources/data).
 
 From the project root, this runs the review on the assignment files:
 
 ```bash
-DATA_DIR="docs/assignment-requirements-SIX"
+DATA_DIR="src/test/resources/data"
 ```
 
 ```bash

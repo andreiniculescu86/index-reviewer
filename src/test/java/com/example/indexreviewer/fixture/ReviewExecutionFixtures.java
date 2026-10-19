@@ -40,7 +40,7 @@ public final class ReviewExecutionFixtures {
         .directSelectionRank(18)
         .bufferRank(22)
         .capPercentage(new BigDecimal("18"))
-        .methodologyVersion("SIX Swiss Index Methodology Rulebook 3.40, 08.06.2026")
+        .methodologyVersion("rulebook-v3.40, 08.06.2026")
         .build();
 
     public static final SecurityTrace ELIGIBLE_SECURITY = SecurityTrace.builder()

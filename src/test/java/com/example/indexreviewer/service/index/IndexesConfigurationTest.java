@@ -16,7 +16,7 @@ class IndexesConfigurationTest {
     @Test
     void findRules_whenIndexConfigured_expectItsRules() {
         IndexesConfiguration configuration = new IndexesConfiguration(Map.of(IndexType.SMI,
-            new IndexConfiguration(20, 18, 22, new BigDecimal("18"), "SIX Rulebook 3.40")));
+            new IndexConfiguration(20, 18, 22, new BigDecimal("18"), "rulebook-v3.40")));
 
         IndexRules rules = configuration.findRules(IndexType.SMI);
 
@@ -24,7 +24,7 @@ class IndexesConfigurationTest {
         assertThat(rules.getDirectSelectionRank()).isEqualTo(18);
         assertThat(rules.getBufferRank()).isEqualTo(22);
         assertThat(rules.getCapPercentage()).isEqualByComparingTo("18");
-        assertThat(rules.getMethodologyVersion()).isEqualTo("SIX Rulebook 3.40");
+        assertThat(rules.getMethodologyVersion()).isEqualTo("rulebook-v3.40");
     }
 
     @Test

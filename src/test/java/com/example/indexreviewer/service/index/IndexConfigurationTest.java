@@ -46,7 +46,7 @@ class IndexConfigurationTest {
     @Test
     void validate_whenCapTooLow_expectViolation() {
         IndexConfiguration configuration = new IndexConfiguration(20, 18, 22, new BigDecimal("4.99"),
-            "SIX Swiss Index Methodology Rulebook 3.40, 08.06.2026");
+            "rulebook-v3.40, 08.06.2026");
 
         Set<ConstraintViolation<IndexConfiguration>> violations = validator.validate(configuration);
 
@@ -57,7 +57,7 @@ class IndexConfigurationTest {
     @Test
     void validate_whenCapAddsUpTo100_expectNoViolation() {
         IndexConfiguration configuration = new IndexConfiguration(20, 18, 22, new BigDecimal("5"),
-            "SIX Swiss Index Methodology Rulebook 3.40, 08.06.2026");
+            "rulebook-v3.40, 08.06.2026");
 
         Set<ConstraintViolation<IndexConfiguration>> violations = validator.validate(configuration);
 
@@ -66,6 +66,6 @@ class IndexConfigurationTest {
 
     private static IndexConfiguration configuration(int directSelectionRank, int numberOfComponents, int bufferRank) {
         return new IndexConfiguration(numberOfComponents, directSelectionRank, bufferRank, new BigDecimal("18"),
-            "SIX Swiss Index Methodology Rulebook 3.40, 08.06.2026");
+            "rulebook-v3.40, 08.06.2026");
     }
 }

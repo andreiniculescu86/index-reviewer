@@ -375,6 +375,6 @@ class RankedIndexReviewerTest {
 
     private static IndexesConfiguration smiConfiguration(int bufferRank) {
         return new IndexesConfiguration(Map.of(IndexType.SMI, new IndexConfiguration(20, 18, bufferRank,
-            new BigDecimal("18"), "SIX Swiss Index Methodology Rulebook 3.40, 08.06.2026")));
+            new BigDecimal("18"), "rulebook-v3.40, 08.06.2026")));
     }
 }
