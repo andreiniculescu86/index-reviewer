@@ -1,4 +1,4 @@
-package com.example.indexreviewer.service.review.smi;
+package com.example.indexreviewer.service.review;
 
 import com.example.indexreviewer.model.Security;
 import com.example.indexreviewer.model.trace.Finding;

@@ -17,11 +17,11 @@ import com.example.indexreviewer.model.trace.SelectionDecision;
 import com.example.indexreviewer.model.trace.Severity;
 import com.example.indexreviewer.repository.memory.InMemoryReviewAuditRepository;
 import com.example.indexreviewer.repository.memory.InMemoryReviewTraceRepository;
-import com.example.indexreviewer.service.review.smi.ComponentSelectorStep;
-import com.example.indexreviewer.service.review.smi.FfmcapCalculatorStep;
-import com.example.indexreviewer.service.review.smi.ReviewDataValidator;
-import com.example.indexreviewer.service.review.smi.SecurityRecordValidator;
-import com.example.indexreviewer.service.review.smi.WeightCalculatorStep;
+import com.example.indexreviewer.service.review.ComponentSelectorStep;
+import com.example.indexreviewer.service.review.FfmcapCalculatorStep;
+import com.example.indexreviewer.service.review.ReviewDataValidator;
+import com.example.indexreviewer.service.review.SecurityRecordValidator;
+import com.example.indexreviewer.service.review.WeightCalculatorStep;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;

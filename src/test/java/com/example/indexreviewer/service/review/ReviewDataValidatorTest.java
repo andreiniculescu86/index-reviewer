@@ -1,4 +1,4 @@
-package com.example.indexreviewer.service.review.smi;
+package com.example.indexreviewer.service.review;
 
 import com.example.indexreviewer.model.Candidate;
 import com.example.indexreviewer.model.IndexType;

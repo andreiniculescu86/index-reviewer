@@ -83,7 +83,7 @@ memory of the running instance.
 | API layer      | `controller`, `dto`, `validation`, `exception` | HTTP contract, request checks, errors           |
 | Review service | `service`                                      | Routes a review to its index; reads reviews     |
 | Index reviewer | `service.index`                                | Runs the steps of one index, records results    |
-| Review steps   | `service.review.smi`                           | Calculations returning result, trace, findings  |
+| Review steps   | `service.review`                               | Calculations returning result, trace, findings  |
 | Models         | `model`                                        | Command, candidates, report, audit, trace       |
 | Repositories   | `repository`                                   | CSV parsing and review store, behind interfaces |
 | Configuration  | `config`, `application.yml`                    | Index rules, OpenAPI, MapStruct, JSON part      |

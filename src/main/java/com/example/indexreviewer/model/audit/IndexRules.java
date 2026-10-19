@@ -20,5 +20,6 @@ public class IndexRules {
     int directSelectionRank;
     int bufferRank;
     BigDecimal capPercentage;
+    CappingRule cappingRule;
     String methodologyVersion;
 }
