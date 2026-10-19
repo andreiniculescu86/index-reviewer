@@ -38,14 +38,15 @@ import java.util.UUID;
 @Slf4j
 @Component
 public class RankedIndexReviewer implements IndexReviewer {
-
-    private final IndexesConfiguration configuration;
-    private final ReviewDataValidator reviewDataValidator;
     private final FfmcapCalculatorStep ffmcapCalculatorStep;
     private final ComponentSelectorStep componentSelectorStep;
     private final WeightCalculatorStep weightCalculatorStep;
+
     private final ReviewAuditRepository auditRepository;
     private final ReviewTraceRepository traceRepository;
+
+    private final IndexesConfiguration configuration;
+    private final ReviewDataValidator reviewDataValidator;
     private final String appVersion;
 
     public RankedIndexReviewer(IndexesConfiguration configuration, ReviewDataValidator reviewDataValidator,
