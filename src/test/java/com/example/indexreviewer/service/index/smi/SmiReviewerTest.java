@@ -17,6 +17,8 @@ import com.example.indexreviewer.model.trace.SelectionDecision;
 import com.example.indexreviewer.model.trace.Severity;
 import com.example.indexreviewer.repository.memory.InMemoryReviewAuditRepository;
 import com.example.indexreviewer.repository.memory.InMemoryReviewTraceRepository;
+import com.example.indexreviewer.service.index.IndexConfiguration;
+import com.example.indexreviewer.service.index.IndexesConfiguration;
 import com.example.indexreviewer.service.review.ComponentSelectorStep;
 import com.example.indexreviewer.service.review.FfmcapCalculatorStep;
 import com.example.indexreviewer.service.review.ReviewDataValidator;
@@ -46,8 +48,7 @@ class SmiReviewerTest {
     private static final LocalDate CUTOFF_DATE = LocalDate.of(2026, 9, 10);
     private static final LocalDate REVIEW_DATE = LocalDate.of(2026, 9, 21);
     private static final List<Integer> CURRENT_SMI = IntStream.rangeClosed(1, 20).boxed().toList();
-    private static final SmiConfiguration CONFIGURATION = new SmiConfiguration(20, 18, 22, new BigDecimal("18"),
-        "SIX Swiss Index Methodology Rulebook 3.40, 08.06.2026");
+    private static final IndexesConfiguration CONFIGURATION = smiConfiguration(22);
 
     private final InMemoryReviewAuditRepository auditRepository = new InMemoryReviewAuditRepository();
     private final InMemoryReviewTraceRepository traceRepository = new InMemoryReviewTraceRepository();
@@ -254,9 +255,7 @@ class SmiReviewerTest {
 
     @Test
     void review_whenSelectionTooSmall_expectFailedWithTrace() {
-        SmiConfiguration configuration = new SmiConfiguration(20, 18, 19, new BigDecimal("18"),
-            "SIX Swiss Index Methodology Rulebook 3.40, 08.06.2026");
-        SmiReviewer reviewer = new SmiReviewer(configuration, reviewDataValidator, ffmcapCalculatorStep,
+        SmiReviewer reviewer = new SmiReviewer(smiConfiguration(19), reviewDataValidator, ffmcapCalculatorStep,
             new ComponentSelectorStep(), new WeightCalculatorStep(), auditRepository, traceRepository, APP_VERSION);
         ReviewCommand command = command(validRows(25), CURRENT_SMI);
 
@@ -369,5 +368,10 @@ class SmiReviewerTest {
             .freeFloat(new BigDecimal(freeFloat))
             .shares(new BigDecimal("1000000"))
             .build();
+    }
+
+    private static IndexesConfiguration smiConfiguration(int bufferRank) {
+        return new IndexesConfiguration(Map.of(IndexType.SMI, new IndexConfiguration(20, 18, bufferRank,
+            new BigDecimal("18"), "SIX Swiss Index Methodology Rulebook 3.40, 08.06.2026")));
     }
 }

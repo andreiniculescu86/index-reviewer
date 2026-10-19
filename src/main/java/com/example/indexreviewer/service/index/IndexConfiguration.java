@@ -1,4 +1,4 @@
-package com.example.indexreviewer.service.index.smi;
+package com.example.indexreviewer.service.index;
 
 import com.example.indexreviewer.model.audit.IndexRules;
 import jakarta.validation.constraints.AssertTrue;
@@ -7,14 +7,13 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
 
-@Validated
-@ConfigurationProperties("indices.smi")
-public record SmiConfiguration(
+/**
+ * Selection and weighting rules of one index, as configured in application.yml, for example under indices.smi.
+ */
+public record IndexConfiguration(
     @Positive int numberOfComponents,
     @Positive int directSelectionRank,
     @Positive int bufferRank,

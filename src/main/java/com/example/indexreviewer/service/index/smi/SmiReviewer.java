@@ -15,6 +15,7 @@ import com.example.indexreviewer.model.trace.Finding;
 import com.example.indexreviewer.repository.ReviewAuditRepository;
 import com.example.indexreviewer.repository.ReviewTraceRepository;
 import com.example.indexreviewer.service.index.IndexReviewer;
+import com.example.indexreviewer.service.index.IndexesConfiguration;
 import com.example.indexreviewer.service.review.ComponentSelectorStep;
 import com.example.indexreviewer.service.review.FfmcapCalculatorStep;
 import com.example.indexreviewer.service.review.ReviewDataValidator;
@@ -38,7 +39,7 @@ import java.util.UUID;
 @Component
 public class SmiReviewer implements IndexReviewer {
 
-    private final SmiConfiguration configuration;
+    private final IndexesConfiguration configuration;
     private final ReviewDataValidator reviewDataValidator;
     private final FfmcapCalculatorStep ffmcapCalculatorStep;
     private final ComponentSelectorStep componentSelectorStep;
@@ -47,7 +48,7 @@ public class SmiReviewer implements IndexReviewer {
     private final ReviewTraceRepository traceRepository;
     private final String appVersion;
 
-    public SmiReviewer(SmiConfiguration configuration, ReviewDataValidator reviewDataValidator,
+    public SmiReviewer(IndexesConfiguration configuration, ReviewDataValidator reviewDataValidator,
                        FfmcapCalculatorStep ffmcapCalculatorStep, ComponentSelectorStep componentSelectorStep,
                        WeightCalculatorStep weightCalculatorStep, ReviewAuditRepository auditRepository,
                        ReviewTraceRepository traceRepository,
@@ -76,7 +77,7 @@ public class SmiReviewer implements IndexReviewer {
             command.getReviewDate());
         ReviewReport report;
         try {
-            report = runSteps(reviewId, command, configuration.toRules());
+            report = runSteps(reviewId, command, configuration.findRules(command.getIndexType()));
             log.info("Review {} finalised with status {}", reviewId, report.getStatus());
         } catch (RuntimeException | Error exception) {
             log.warn("Review {} of {} stopped on an unexpected error; {}", reviewId, command.getIndexType(),
@@ -165,7 +166,7 @@ public class SmiReviewer implements IndexReviewer {
             .status(report.getStatus())
             .executedAt(executedAt)
             .appVersion(appVersion)
-            .rules(configuration.toRules())
+            .rules(configuration.findRules(command.getIndexType()))
             .composition(composition)
             .build());
     }
@@ -179,7 +180,7 @@ public class SmiReviewer implements IndexReviewer {
             .status(ReviewStatus.ERROR)
             .executedAt(executedAt)
             .appVersion(appVersion)
-            .rules(configuration.toRules())
+            .rules(configuration.findRules(command.getIndexType()))
             .composition(List.of())
             .build());
     }
