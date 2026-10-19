@@ -164,7 +164,7 @@ Which data check gives which code is in [Data validation](data-validation.md#che
 | `INVALID_VALUE`                      | ERROR    | Price, shares or free float missing, zero, negative, above 1 or too long       |
 | `CONFLICTING_DUPLICATE`              | ERROR    | Two rows for one universe member and date have different values                |
 | `SELECTION_SIZE`                     | ERROR    | The selection did not fill exactly 20 seats                                    |
-| `INVALID_WEIGHTS`                    | ERROR    | Final weights break a rule: above cap, negative, sum not 100, factors mismatch |
+| `INVALID_WEIGHTS`                    | ERROR    | Final weights break a rule: above cap, negative or sum not 100                 |
 | `MISSING_CUTOFF_PRICE`               | WARNING  | No price on the cut-off date; the security is not eligible                     |
 | `MISSING_REVIEW_DATA`                | WARNING  | No row on the review date; the security is not eligible                        |
 | `DUPLICATE_ROW`                      | WARNING  | Two identical rows for one universe member and date; counted once              |

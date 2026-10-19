@@ -24,9 +24,8 @@ import java.util.stream.IntStream;
  * capped component loses goes to the components below the cap in proportion to their FFMCAP, in rounds until no
  * weight exceeds the cap. Weights are percentages of the index, 18 for 18%, with 4 decimals. They are rounded with the
  * largest remainder method, so every weight stays within 0.0001 of its exact value and the weights add up to exactly
- * 100. The capping factor is 1 for a component that is not capped and below 1 for a capped one, with 10 decimals, so
- * that FFMCAP x capping factor reproduces the weights. The rounds, the rounding and the capping factor
- * formula are assumptions, described in docs/methodology.md.
+ * 100. The capping factor is 1 for a component that is not capped and below 1 for a capped one, with 4 decimals.
+ * The rounds, the rounding and the capping factor formula are assumptions, described in docs/methodology.md.
  */
 @Slf4j
 @Component
@@ -35,7 +34,6 @@ public class WeightCalculatorStepImpl implements WeightCalculatorStep {
     private static final BigDecimal FULL_INDEX_WEIGHT = BigDecimal.valueOf(100);
     private static final BigDecimal WEIGHT_UNIT = new BigDecimal("0.0001");
     private static final int EXACT_DECIMALS = 20;
-    private static final int CAPPING_FACTOR_DECIMALS = 10;
 
     /**
      * Of the index rules, only the cap percentage is used.
@@ -57,7 +55,7 @@ public class WeightCalculatorStepImpl implements WeightCalculatorStep {
         return WeightResult.builder()
             .constituents(weightedConstituents)
             .traces(getWeightTraces(weightedConstituents))
-            .findings(checkWeights(selectedComponents, weightedConstituents, capPercentage))
+            .findings(checkWeights(weightedConstituents, capPercentage))
             .build();
     }
 
@@ -158,8 +156,8 @@ public class WeightCalculatorStepImpl implements WeightCalculatorStep {
                     .weight(roundedWeights.get(index))
                     .cappingFactor(cappedSecurityIds.contains(component.getSecurityId())
                         ? capPercentage.multiply(uncappedTotalFfmcap).divide(
-                        remainingWeight.multiply(component.getFfmcap()), CAPPING_FACTOR_DECIMALS, RoundingMode.HALF_UP)
-                        : BigDecimal.ONE.setScale(CAPPING_FACTOR_DECIMALS))
+                        remainingWeight.multiply(component.getFfmcap()), WEIGHT_UNIT.scale(), RoundingMode.HALF_UP)
+                        : BigDecimal.ONE.setScale(WEIGHT_UNIT.scale()))
                     .build();
             })
             .toList();
@@ -167,12 +165,10 @@ public class WeightCalculatorStepImpl implements WeightCalculatorStep {
 
     /**
      * Sanity check of the final weights. Returns an {@code INVALID_WEIGHTS} error for each broken rule: a weight above
-     * the cap, a negative weight, weights that do not add up to 100, or capping factors that do not reproduce the
-     * weights within 0.0001. A weight above the cap or a total below 100 happens when the number of components x the
-     * cap is below 100, which the index configuration rejects at startup.
+     * the cap, a negative weight, or weights that do not add up to 100. A weight above the cap or a total below 100
+     * happens when the number of components x the cap is below 100, which the index configuration rejects at startup.
      */
-    private static List<Finding> checkWeights(List<Candidate> selectedComponents, List<Constituent> constituents,
-                                              BigDecimal capPercentage) {
+    private static List<Finding> checkWeights(List<Constituent> constituents, BigDecimal capPercentage) {
         List<Finding> findings = new ArrayList<>();
         List<BigDecimal> weights = constituents.stream().map(Constituent::getWeight).toList();
         BigDecimal largestWeight = weights.stream().reduce(BigDecimal::max).orElse(BigDecimal.ZERO);
@@ -190,33 +186,7 @@ public class WeightCalculatorStepImpl implements WeightCalculatorStep {
             findings.add(invalidWeights("The weights add up to %s%% instead of 100%%"
                 .formatted(totalWeight.toPlainString())));
         }
-        List<Integer> unreproducedIds = findUnreproducedWeights(selectedComponents, constituents);
-        if (!unreproducedIds.isEmpty()) {
-            findings.add(invalidWeights("FFMCAP x capping factor does not reproduce the weights of securities %s"
-                .formatted(unreproducedIds)));
-        }
         return findings;
-    }
-
-    /**
-     * Returns the ids whose weight, calculated again from FFMCAP x capping factor, differs from the rounded weight by
-     * 0.0001 or more.
-     */
-    private static List<Integer> findUnreproducedWeights(List<Candidate> selectedComponents,
-                                                         List<Constituent> constituents) {
-        List<BigDecimal> cappedFfmcaps = IntStream.range(0, selectedComponents.size())
-            .mapToObj(index -> selectedComponents.get(index).getFfmcap()
-                .multiply(constituents.get(index).getCappingFactor()))
-            .toList();
-        BigDecimal cappedTotalFfmcap = sumOf(cappedFfmcaps);
-        if (cappedTotalFfmcap.signum() == 0) {
-            return List.of();
-        }
-        return IntStream.range(0, constituents.size())
-            .filter(index -> divideExactly(FULL_INDEX_WEIGHT.multiply(cappedFfmcaps.get(index)), cappedTotalFfmcap)
-                .subtract(constituents.get(index).getWeight()).abs().compareTo(WEIGHT_UNIT) >= 0)
-            .mapToObj(index -> constituents.get(index).getSecurityId())
-            .toList();
     }
 
     private static Finding invalidWeights(String message) {

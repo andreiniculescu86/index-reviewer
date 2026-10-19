@@ -180,7 +180,7 @@ explanation can never disagree. The models are described in the [API reference](
 | Validation      | Request format at the API layer (`400`); data content in the review as findings with severities |
 | Error responses | `GlobalExceptionHandler` turns every rejected request into the same `ErrorResponse` shape       |
 | Configuration   | SMI rules bound from `application.yml` and validated at startup; a wrong rule stops the start   |
-| Precision       | Exact decimals; weights with 4 decimals, capping factors with 10 decimals                       |
+| Precision       | Exact decimals; weights with 4 decimals, capping factors with 4 decimals                        |
 | Logging         | Review id, status and step results, as ECS JSON in `logs/index-reviewer.json`                   |
 | Concurrency     | Each request runs its own review; the in-memory store uses `ConcurrentHashMap`                  |
 | API description | springdoc serves Swagger UI and the OpenAPI specification from the code                         |

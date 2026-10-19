@@ -6,7 +6,7 @@ portal or a published OpenAPI specification. The running application serves the 
 http://localhost:8096/ and as OpenAPI JSON at http://localhost:8096/v3/api-docs.
 
 All endpoints return JSON. Numbers such as weights and capping factors are JSON numbers; weights are percentages
-(`18` for 18%) with 4 decimals; capping factors have 10 decimals.
+(`18` for 18%) with 4 decimals; capping factors have 4 decimals.
 
 | Endpoint                                                                  | Purpose                              |
 |---------------------------------------------------------------------------|--------------------------------------|

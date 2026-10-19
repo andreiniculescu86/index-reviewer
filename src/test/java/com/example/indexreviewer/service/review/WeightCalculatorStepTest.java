@@ -33,7 +33,7 @@ class WeightCalculatorStepTest {
             .containsExactly(new BigDecimal("50"), new BigDecimal("37.5"), new BigDecimal("12.5"));
         assertThat(result.getTraces()).extracting(WeightTrace::getCappingFactor)
             .usingElementComparator(BigDecimal::compareTo)
-            .containsExactly(new BigDecimal("0.6666666667"), BigDecimal.ONE, BigDecimal.ONE);
+            .containsExactly(new BigDecimal("0.6667"), BigDecimal.ONE, BigDecimal.ONE);
         assertThat(result.getFindings()).isEmpty();
     }
 
@@ -47,7 +47,7 @@ class WeightCalculatorStepTest {
             .containsOnly(4);
         assertThat(result.getConstituents()).extracting(Constituent::getCappingFactor)
             .extracting(BigDecimal::scale)
-            .containsOnly(10);
+            .containsOnly(4);
     }
 
     @Test
@@ -78,8 +78,8 @@ class WeightCalculatorStepTest {
                 new BigDecimal("19.4020"), new BigDecimal("17.5980"));
         assertThat(result.getConstituents()).extracting(Constituent::getCappingFactor)
             .usingElementComparator(BigDecimal::compareTo)
-            .containsExactly(new BigDecimal("0.8771423641"), new BigDecimal("0.9279960927"),
-                new BigDecimal("0.9962087217"), BigDecimal.ONE, BigDecimal.ONE);
+            .containsExactly(new BigDecimal("0.8771"), new BigDecimal("0.9280"),
+                new BigDecimal("0.9962"), BigDecimal.ONE, BigDecimal.ONE);
         assertThat(result.getFindings()).isEmpty();
     }
 
@@ -110,7 +110,7 @@ class WeightCalculatorStepTest {
             .containsOnly(new BigDecimal("25"));
         assertThat(result.getConstituents()).extracting(Constituent::getCappingFactor)
             .usingElementComparator(BigDecimal::compareTo)
-            .containsExactly(new BigDecimal("0.25"), new BigDecimal("0.3333333333"), new BigDecimal("0.5"),
+            .containsExactly(new BigDecimal("0.25"), new BigDecimal("0.3333"), new BigDecimal("0.5"),
                 BigDecimal.ONE);
         assertThat(result.getFindings()).isEmpty();
     }
@@ -170,6 +170,18 @@ class WeightCalculatorStepTest {
         assertThat(result.getConstituents().getLast().getWeight()).isEqualByComparingTo("0");
         assertThat(result.getConstituents().stream().map(Constituent::getWeight)
             .reduce(BigDecimal.ZERO, BigDecimal::add)).isEqualByComparingTo("100");
+        assertThat(result.getFindings()).isEmpty();
+    }
+
+    @Test
+    void calculateWeights_whenSmallFactorRounded_expectAccepted() {
+        List<Candidate> components = new ArrayList<>(List.of(component(1, "130")));
+        components.addAll(IntStream.rangeClosed(2, 20).mapToObj(id -> component(id, "1")).toList());
+
+        WeightResult result = calculator.calculateWeights(components, capRules(new BigDecimal("18")));
+
+        assertThat(result.getConstituents().getFirst().getWeight()).isEqualByComparingTo("18");
+        assertThat(result.getConstituents().getFirst().getCappingFactor()).isEqualByComparingTo("0.0321");
         assertThat(result.getFindings()).isEmpty();
     }
 

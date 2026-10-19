@@ -100,22 +100,22 @@ For the assignment files the review returns `201` with this report (shortened):
     {
       "securityId": 155,
       "weight": 18.0000,
-      "cappingFactor": 0.5653526015
+      "cappingFactor": 0.5654
     },
     {
       "securityId": 205,
       "weight": 18.0000,
-      "cappingFactor": 0.6117362279
+      "cappingFactor": 0.6117
     },
     {
       "securityId": 63,
       "weight": 14.2591,
-      "cappingFactor": 1.0000000000
+      "cappingFactor": 1.0000
     },
     {
       "securityId": 81,
       "weight": 0.8503,
-      "cappingFactor": 1.0000000000
+      "cappingFactor": 1.0000
     }
   ],
   "joiners": [
